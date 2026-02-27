@@ -4,6 +4,8 @@ Quick benchmark for vector-search freshness:
 
 `Freshness Latency = T(searchable) - T(ingested)`
 
+Detailed implementation notes: see `implementation.md`.
+
 It measures, per document:
 - `t_ingested`
 - `t_embedding_done`
