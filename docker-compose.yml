@@ -1,0 +1,7 @@
+services:
+  qdrant:
+    image: qdrant/qdrant:v1.13.4
+    container_name: freshness-qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"
