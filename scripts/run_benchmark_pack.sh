@@ -3,4 +3,10 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-PYTHONPATH=src python3 -m freshness_benchmark.cli pack "$@"
+if [[ -x ".venv/bin/python" ]]; then
+  PYTHON_BIN=".venv/bin/python"
+else
+  PYTHON_BIN="python3"
+fi
+
+PYTHONPATH=src "$PYTHON_BIN" -m freshness_benchmark.cli pack "$@"
