@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import sys
 
-from .config import build_parser, config_from_args
-from .runner import run_benchmark
+from .config import build_parser, compare_config_from_args, config_from_args
+from .runner import run_benchmark, run_compare
 from .visualize import generate_report_from_args
 
 
@@ -15,6 +15,10 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "run":
             config = config_from_args(args)
             run_benchmark(config)
+        elif args.command == "compare":
+            config = compare_config_from_args(args)
+            summary = run_compare(config)
+            print(f"comparison_written={config.out_dir}/comparison.html runs={len(summary.rows)}")
         elif args.command == "report":
             output = generate_report_from_args(args)
             print(f"report_written={output}")

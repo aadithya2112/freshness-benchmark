@@ -1,18 +1,37 @@
 from __future__ import annotations
 
+import hashlib
 import json
+import math
 import os
 import urllib.error
 import urllib.request
-from typing import Any
+from typing import Any, Protocol
 
 
-class EmbeddingClient:
+class EmbeddingSource(Protocol):
+    def get_vector(self, doc_id: str, text: str) -> list[float]:
+        ...
+
+    def close(self) -> None:
+        ...
+
+    @property
+    def dimensions(self) -> int | None:
+        ...
+
+    @property
+    def metadata(self) -> dict[str, Any]:
+        ...
+
+
+class LiveEmbeddingSource:
     def __init__(self, provider: str, base_url: str, model: str) -> None:
         self.provider = provider
         self.base_url = base_url.rstrip("/")
         self.model = model
         self._api_key = self._resolve_api_key(provider)
+        self._dimensions: int | None = None
 
     @staticmethod
     def _resolve_api_key(provider: str) -> str:
@@ -26,7 +45,8 @@ class EmbeddingClient:
             raise RuntimeError(f"Missing required environment variable: {env_var}")
         return value
 
-    def embed(self, text: str) -> list[float]:
+    def get_vector(self, doc_id: str, text: str) -> list[float]:
+        del doc_id
         payload: dict[str, Any] = {
             "model": self.model,
             "input": text,
@@ -56,7 +76,77 @@ class EmbeddingClient:
         embedding = data[0].get("embedding")
         if not embedding:
             raise RuntimeError("Embedding response missing vector payload")
+        self._dimensions = len(embedding)
         return embedding
+
+    @property
+    def dimensions(self) -> int | None:
+        return self._dimensions
+
+    @property
+    def metadata(self) -> dict[str, Any]:
+        return {
+            "type": "live",
+            "provider": self.provider,
+            "model": self.model,
+            "base_url": self.base_url,
+        }
 
     def close(self) -> None:
         return None
+
+
+class PrecomputedEmbeddingSource:
+    def __init__(self, dimensions: int) -> None:
+        self._dimensions = dimensions
+
+    @staticmethod
+    def _float_from_digest(seed: bytes) -> float:
+        value = int.from_bytes(seed[:8], "big", signed=False)
+        return (value / float(2**64 - 1)) * 2.0 - 1.0
+
+    def get_vector(self, doc_id: str, text: str) -> list[float]:
+        # Hash both doc id and text so vectors stay deterministic across runs and
+        # remain stable for fair backend comparisons.
+        base = f"{doc_id}\n{text}".encode("utf-8")
+        values: list[float] = []
+        counter = 0
+        while len(values) < self._dimensions:
+            digest = hashlib.sha256(base + counter.to_bytes(4, "big")).digest()
+            for offset in range(0, len(digest), 8):
+                values.append(self._float_from_digest(digest[offset : offset + 8]))
+                if len(values) == self._dimensions:
+                    break
+            counter += 1
+
+        norm = math.sqrt(sum(value * value for value in values)) or 1.0
+        return [value / norm for value in values]
+
+    @property
+    def dimensions(self) -> int | None:
+        return self._dimensions
+
+    @property
+    def metadata(self) -> dict[str, Any]:
+        return {
+            "type": "precomputed",
+            "dimensions": self._dimensions,
+        }
+
+    def close(self) -> None:
+        return None
+
+
+def build_embedding_source(
+    *,
+    embedding_mode: str,
+    provider: str,
+    base_url: str,
+    model: str,
+    dimensions: int,
+) -> EmbeddingSource:
+    if embedding_mode == "live":
+        return LiveEmbeddingSource(provider=provider, base_url=base_url, model=model)
+    if embedding_mode == "precomputed":
+        return PrecomputedEmbeddingSource(dimensions=dimensions)
+    raise ValueError(f"Unsupported embedding mode: {embedding_mode}")

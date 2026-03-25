@@ -4,12 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "freshness-benchmark"
-version = "0.1.0"
-description = "MVP benchmark for vector search freshness latency."
+version = "0.2.0"
+description = "Benchmark vector-search freshness across embedding modes and vector backends."
 readme = "README.md"
 requires-python = ">=3.10"
 authors = [{ name = "Freshness Benchmark" }]
-dependencies = []
+dependencies = ["psycopg[binary]>=3.2.0"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0.0"]

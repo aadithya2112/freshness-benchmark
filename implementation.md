@@ -1,113 +1,84 @@
 # Implementation Details
 
-## 1) Architecture Overview
+## Architecture
 
-The project is a Python CLI benchmark with two flows:
+The benchmark is a Python CLI with three workflows:
 
-- `run`: executes ingestion -> embedding -> indexing -> retrieval checks and writes artifacts.
-- `report`: reads artifacts and generates a single-page HTML visualization.
+- `run`: execute one pipelined freshness benchmark
+- `compare`: execute a matrix of runs across backends, rates, and embedding modes
+- `report`: regenerate a single-run HTML report from artifacts
 
-Core design goals:
+## Runtime Pipeline
 
-- Keep the MVP simple and deterministic.
-- Capture exact lifecycle timestamps per document.
-- Produce artifacts that are easy to inspect and demo.
+Each document moves through independent stages:
 
-## 2) Runtime Pipeline (`run`)
+1. Submission at a target ingest rate
+2. Embedding generation or deterministic vector lookup
+3. Backend upsert and write acknowledgement
+4. Polling until the document is searchable
 
-The benchmark runs in a single process at a configured steady rate (`--rate` docs/sec).
+The runner is pipelined, not serial:
 
-Per document:
+- later docs can be submitted while earlier docs are still embedding
+- writes are bounded by `--write-concurrency`
+- visibility polling is independent from embedding and write stages
 
-1. Generate synthetic text with a unique anchor phrase and deterministic `doc_id`.
-2. Record `t_ingested` right before sending work into the embedding/index path.
-3. Call embedding API (OpenRouter OpenAI-compatible endpoint) and record `t_embedding_done`.
-4. Upsert vector + payload into Qdrant and record `t_index_update_done`.
-5. Poll vector search until top-K contains the same `doc_id`; record `t_first_search_success`.
-6. Compute:
-   - `embedding_ms = t_embedding_done - t_ingested`
-   - `index_ack_ms = t_index_update_done - t_embedding_done`
-   - `freshness_ms = t_first_search_success - t_ingested`
+Workload inputs now support:
 
-If top-K match does not happen within `--max-wait-s`, the document is marked `timeout`.
-If any API step fails, the document is marked `error`.
+- synthetic profiles
+- local JSONL corpora
+- local text/Markdown directory corpora
 
-## 3) Module Responsibilities
+For dataset-backed runs, the benchmark injects a deterministic retrieval anchor into the benchmarked copy of each document while preserving the original source text separately in the trace metadata.
 
-- `src/freshness_benchmark/cli.py`
-  - Entry point and command routing (`run`, `report`).
-- `src/freshness_benchmark/config.py`
-  - CLI argument definitions and runtime config construction.
-- `src/freshness_benchmark/models.py`
-  - Data models: `BenchmarkConfig`, `DocLifecycle`, `RunSummary`.
-  - Timestamp and duration helpers.
-- `src/freshness_benchmark/embeddings.py`
-  - Embedding client wrapper over `/embeddings` HTTP call.
-  - Provider-to-env-key resolution (`OPENROUTER_API_KEY` / `OPENAI_API_KEY`).
-- `src/freshness_benchmark/qdrant_backend.py`
-  - Qdrant collection creation, upsert, and search.
-  - Success rule helper (`match_doc_in_hits`) and idempotent collection handling.
-- `src/freshness_benchmark/runner.py`
-  - Main orchestration loop, pacing, timestamp capture, timeout/error handling.
-- `src/freshness_benchmark/reporting.py`
-  - Percentiles/stat aggregation, artifact writes, and console summary.
-- `src/freshness_benchmark/visualize.py`
-  - Reads `summary.json` + `metrics.csv` and renders `report.html` (KPI cards + charts).
+## Adapters And Sources
 
-## 4) Data and Output Contracts
+- Embedding source contract:
+  - `get_vector(doc_id, text)`
+  - `dimensions`
+  - `metadata`
+- Backend adapter contract:
+  - `prepare_run(vector_size)`
+  - `upsert(doc_id, vector, payload)`
+  - `search(vector, limit)`
+  - `reset_run_data()`
+  - `backend_info()`
+  - `close()`
 
-Each run writes to `artifacts/<run_id>/`:
+Implemented backends:
 
-- `trace.jsonl`
-  - One JSON object per document with raw timestamps, status, and derived metrics.
-- `metrics.csv`
-  - Tabular per-document view, useful for spreadsheets and ad-hoc analysis.
-- `summary.json`
-  - Aggregates: totals, success rate, and p50/p95/p99 stats for key metrics.
-- `report.html` (when `report` command is run)
-  - One-page visual report for demo use.
+- Qdrant via HTTP
+- Weaviate via HTTP
+- pgvector via `psycopg`
 
-Important statuses:
+## Artifacts
 
-- `success`: document became searchable in top-K.
-- `timeout`: search visibility not reached before timeout.
-- `error`: API/runtime failure prevented completion.
+Per run:
 
-## 5) Visualization Flow (`report`)
+- `trace.jsonl`: raw per-document lifecycle records
+- `metrics.csv`: tabular per-document metrics
+- `summary.json`: run-level percentiles, rates, backend info, environment metadata
+- `summary.json` also records dataset configuration when `--workload dataset`
+- `report.html`: single-run HTML report
 
-`report` does not rerun benchmarking. It reads existing artifacts:
+Per comparison:
 
-- Finds run directory (`--run-dir` or latest in `--artifacts-dir`).
-- Parses `summary.json` and `metrics.csv`.
-- Builds:
-  - Headline KPI cards (success + freshness percentiles).
-  - Freshness histogram.
-  - Freshness CDF.
-  - Stage breakdown bars (embedding, index ack, inferred search visibility gap).
-- Writes `report.html` in run dir (or `--out-file`).
+- `comparison.json`: aggregated comparison rows
+- `comparison.csv`: tabular comparison results
+- `comparison.html`: comparison dashboard
 
-## 6) Error Handling and Practical Behavior
+## Metrics
 
-- Missing required API key fails early with a clear error.
-- Qdrant collection creation is idempotent across reruns (existing collection conflict is ignored).
-- Search endpoint compatibility includes query/search fallback behavior.
-- Runner continues document-by-document; one doc failure does not abort the entire run.
+- `embedding_ms`
+- `write_ack_ms`
+- `visibility_ms`
+- `freshness_ms`
 
-## 7) Test Coverage
+Percentiles are reported for p50, p95, and p99, plus min/max.
 
-Tests are in `tests/`:
+## Reproducibility Choices
 
-- Metric computation and percentile logic.
-- Success rule correctness for top-K matching.
-- Timeout behavior.
-- Qdrant collection idempotency behavior.
-- Visualization utility behavior (histogram/CDF/latest-run/report generation).
-
-This is MVP-grade coverage focused on correctness of benchmark semantics and repeatability of outputs.
-
-## 8) Current MVP Boundaries
-
-- Single-process benchmark loop (not distributed load generation).
-- Synthetic corpus, not production content.
-- Single vector backend path (Qdrant) and provider-focused setup.
-- External embedding latency depends on network/provider conditions.
+- `precomputed` mode provides deterministic vectors for fair backend comparisons
+- run metadata includes backend target details, host metadata, and Docker images when available
+- workload profiles keep retrieval deterministic with unique anchors while varying text size
+- local smoke gating is validated with one synthetic compare and one dataset-backed compare across `qdrant`, `weaviate`, and `pgvector`

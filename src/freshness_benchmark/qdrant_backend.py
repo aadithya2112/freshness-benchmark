@@ -4,6 +4,7 @@ import json
 import urllib.error
 import urllib.parse
 import urllib.request
+import uuid
 from typing import Any
 
 
@@ -16,9 +17,13 @@ def match_doc_in_hits(hits: list[dict[str, Any]], doc_id: str) -> bool:
 
 
 class QdrantBackend:
-    def __init__(self, qdrant_url: str, collection: str) -> None:
+    name = "qdrant"
+
+    def __init__(self, qdrant_url: str, collection: str, run_id: str) -> None:
         self._qdrant_url = qdrant_url.rstrip("/")
         self.collection = collection
+        self.run_id = run_id
+        self._prepared = False
 
     def _request(
         self,
@@ -76,7 +81,10 @@ class QdrantBackend:
         except urllib.error.URLError as exc:
             raise RuntimeError(f"Qdrant connection error: {exc.reason}") from exc
 
-    def ensure_collection(self, vector_size: int) -> None:
+    def _normalize_point_id(self, point_id: str) -> str:
+        return str(uuid.uuid5(uuid.NAMESPACE_URL, f"{self.run_id}:{point_id}"))
+
+    def _create_collection(self, vector_size: int) -> None:
         payload = {
             "vectors": {
                 "size": vector_size,
@@ -88,19 +96,83 @@ class QdrantBackend:
             f"/collections/{self.collection}",
             body=payload,
         )
-        if status < 400:
-            return
+        if status >= 400:
+            raise RuntimeError(
+                f"Qdrant prepare_run error: HTTP {status}: {body}"
+            )
 
-        error_msg = str((body.get("status") or {}).get("error", body))
-        if status == 409 and "already exists" in error_msg.lower():
-            return
-        raise RuntimeError(f"Qdrant ensure_collection error: HTTP {status}: {body}")
+    def _delete_collection(self) -> None:
+        status, body = self._request_with_status("DELETE", f"/collections/{self.collection}")
+        if status >= 400 and status != 404:
+            raise RuntimeError(f"Qdrant delete_collection error: HTTP {status}: {body}")
 
-    def upsert(self, point_id: int, vector: list[float], payload: dict[str, Any]) -> None:
+    def _collection_vector_size(self) -> int | None:
+        body = self._request("GET", f"/collections/{self.collection}")
+        vectors = (
+            body.get("result", {})
+            .get("config", {})
+            .get("params", {})
+            .get("vectors")
+        )
+        if isinstance(vectors, dict):
+            if "size" in vectors:
+                return int(vectors["size"])
+            for value in vectors.values():
+                if isinstance(value, dict) and "size" in value:
+                    return int(value["size"])
+        return None
+
+    def prepare_run(self, vector_size: int) -> None:
+        payload = {
+            "vectors": {
+                "size": vector_size,
+                "distance": "Cosine",
+            }
+        }
+        status, body = self._request_with_status(
+            "PUT",
+            f"/collections/{self.collection}",
+            body=payload,
+        )
+        if status >= 400:
+            error_msg = str((body.get("status") or {}).get("error", body))
+            if status == 409 and "already exists" in error_msg.lower():
+                existing_size = self._collection_vector_size()
+                if existing_size is not None and existing_size != vector_size:
+                    self._delete_collection()
+                    self._create_collection(vector_size)
+            else:
+                raise RuntimeError(
+                    f"Qdrant prepare_run error: HTTP {status}: {body}"
+                )
+        self.reset_run_data()
+        self._prepared = True
+
+    def reset_run_data(self) -> None:
+        selector = {
+            "filter": {
+                "must": [
+                    {
+                        "key": "run_id",
+                        "match": {
+                            "value": self.run_id,
+                        },
+                    }
+                ]
+            }
+        }
+        self._request(
+            "POST",
+            f"/collections/{self.collection}/points/delete",
+            body=selector,
+            query={"wait": "true"},
+        )
+
+    def upsert(self, point_id: str, vector: list[float], payload: dict[str, Any]) -> None:
         body = {
             "points": [
                 {
-                    "id": point_id,
+                    "id": self._normalize_point_id(point_id),
                     "vector": vector,
                     "payload": payload,
                 }
@@ -118,6 +190,16 @@ class QdrantBackend:
             "query": vector,
             "limit": limit,
             "with_payload": True,
+            "filter": {
+                "must": [
+                    {
+                        "key": "run_id",
+                        "match": {
+                            "value": self.run_id,
+                        },
+                    }
+                ]
+            },
         }
         status, body = self._request_with_status(
             "POST",
@@ -129,6 +211,7 @@ class QdrantBackend:
                 "vector": vector,
                 "limit": limit,
                 "with_payload": True,
+                "filter": query_payload["filter"],
             }
             body = self._request(
                 "POST",
@@ -147,6 +230,18 @@ class QdrantBackend:
         if isinstance(result, list):
             return result
         return []
+
+    def backend_info(self) -> dict[str, Any]:
+        try:
+            body = self._request("GET", "/")
+        except RuntimeError:
+            return {"name": self.name, "url": self._qdrant_url}
+        return {
+            "name": self.name,
+            "url": self._qdrant_url,
+            "version": body.get("version"),
+            "title": body.get("title"),
+        }
 
     def close(self) -> None:
         return None

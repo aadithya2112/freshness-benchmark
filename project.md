@@ -1,24 +1,35 @@
 # Project Summary
 
-This project benchmarks vector-search freshness: how long it takes for an ingested document to become retrievable in search.
+This project benchmarks vector-search freshness: the time between document submission and the first successful retrieval for that document.
 
-It records per-document timestamps for ingestion, embedding completion, index update completion, and first successful retrieval, then computes:
+Primary metric:
 
-`Freshness Latency = T(searchable) - T(ingested)`
+`Freshness Latency = T(searchable) - T(submitted)`
 
-## Implementation (MVP)
+The benchmark also records:
 
-- Python CLI with two commands:
-  - `run`: executes the benchmark and writes artifacts.
-  - `report`: builds a one-page HTML visualization from run artifacts.
-- Synthetic documents are generated with unique anchors for deterministic retrieval checks.
-- Embeddings are requested from OpenRouter (OpenAI-compatible `/embeddings` API).
-- Vectors are upserted into local Qdrant, then polled until the doc appears in top-K search.
-- Each run writes `trace.jsonl`, `metrics.csv`, `summary.json`, and `report.html` under `artifacts/<run_id>/`.
+- embedding latency
+- backend write acknowledgement latency
+- search visibility latency after write acknowledgement
 
-## Limitations
+## Current Scope
 
-- MVP is single-backend (local Qdrant) and single-provider focused.
-- Embedding latency includes external API/network variability.
-- Uses synthetic documents (not production traffic/content).
-- Single-process runner; not a high-concurrency load test.
+- Python CLI with:
+  - `run` for a single benchmark
+  - `compare` for a backend/rate/mode matrix
+  - `report` for HTML generation from run artifacts
+- Backend adapters:
+  - Qdrant
+  - Weaviate
+  - pgvector
+- Embedding modes:
+  - `precomputed` for apples-to-apples backend comparisons
+  - `live` for end-to-end ingest freshness
+- Synthetic workload profiles with deterministic retrieval anchors
+- HTML reports for both single runs and comparison matrices
+
+## Intended Use
+
+- Compare vector stores fairly with fixed vectors
+- Measure real ingest freshness with live embeddings
+- Produce reproducible artifacts that other developers can rerun locally

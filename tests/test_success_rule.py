@@ -22,7 +22,15 @@ class SuccessRuleTest(unittest.TestCase):
         self.assertFalse(match_doc_in_hits(hits, "doc-0999"))
 
     def test_timeout_marks_failure_and_reason(self) -> None:
-        lifecycle = DocLifecycle(run_id="r1", doc_id="doc-0001", text="x")
+        lifecycle = DocLifecycle(
+            run_id="r1",
+            backend="qdrant",
+            embedding_mode="precomputed",
+            workload="synthetic-small",
+            doc_id="doc-0001",
+            doc_num=1,
+            text="x",
+        )
         lifecycle.mark_timeout("Doc not found in top-10 within 120s")
 
         self.assertEqual(lifecycle.status, "timeout")

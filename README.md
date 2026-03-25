@@ -1,22 +1,34 @@
-# Freshness Benchmark MVP
+# Freshness Benchmark V2
 
-Quick benchmark for vector-search freshness:
+Benchmark how long it takes for a document to become searchable after submission.
 
-`Freshness Latency = T(searchable) - T(ingested)`
+Primary metric:
 
-Detailed implementation notes: see `implementation.md`.
+`freshness_ms = t_searchable - t_submitted`
 
-It measures, per document:
-- `t_ingested`
-- `t_embedding_done`
-- `t_index_update_done`
-- `t_first_search_success`
+Stage metrics:
+
+- `embedding_ms = t_embedding_done - t_submitted`
+- `write_ack_ms = t_write_acked - t_embedding_done`
+- `visibility_ms = t_searchable - t_write_acked`
+
+The benchmark supports:
+
+- Backends: `qdrant`, `weaviate`, `pgvector`
+- Embedding modes:
+  - `precomputed` for backend-only fairness
+  - `live` for real end-to-end ingest latency
+- Workload profiles:
+  - `synthetic-small`
+  - `synthetic-medium`
+  - `synthetic-large`
+  - `dataset`
 
 ## Requirements
 
 - Python 3.10+
-- Docker (for local Qdrant)
-- `OPENROUTER_API_KEY` set in environment
+- Docker
+- `OPENROUTER_API_KEY` or `OPENAI_API_KEY` only when using `--embedding-mode live`
 
 ## Setup
 
@@ -26,69 +38,140 @@ source .venv/bin/activate
 pip install -e .
 ```
 
-## Start Qdrant
+## Start Local Backends
 
 ```bash
 docker compose up -d
 ```
 
-Qdrant will be available at `http://localhost:6333`.
+Services:
 
-## Run benchmark
+- Qdrant: `http://localhost:6333`
+- Weaviate: `http://localhost:8080`
+- pgvector/Postgres: `postgresql://postgres:postgres@localhost:5432/freshness`
+
+## Run A Single Benchmark
+
+Backend-only fairness run:
+
+```bash
+PYTHONPATH=src python3 -m freshness_benchmark.cli run \
+  --backend qdrant \
+  --embedding-mode precomputed \
+  --docs 200 \
+  --rate 5 \
+  --workload synthetic-medium
+```
+
+Live end-to-end run:
 
 ```bash
 export OPENROUTER_API_KEY=your_key_here
-python -m freshness_benchmark.cli run --docs 200 --rate 5
-```
-
-## CLI options
-
-```text
-python -m freshness_benchmark.cli run \
-  --docs 200 \
-  --rate 5 \
-  --collection freshness_benchmark \
-  --qdrant-url http://localhost:6333 \
+PYTHONPATH=src python3 -m freshness_benchmark.cli run \
+  --backend weaviate \
+  --embedding-mode live \
   --embedding-model text-embedding-3-small \
   --provider openrouter \
-  --base-url https://openrouter.ai/api/v1 \
-  --top-k 10 \
-  --poll-interval-ms 250 \
-  --max-wait-s 120 \
-  --out-dir ./artifacts/<run-id>
+  --docs 100 \
+  --rate 3
 ```
 
-`OPENROUTER_MODEL` can be set to override `--embedding-model`.
+Useful flags:
+
+```text
+--backend qdrant|weaviate|pgvector
+--embedding-mode live|precomputed
+--embedding-concurrency 4
+--write-concurrency 4
+--search-concurrency 8
+--workload synthetic-small|synthetic-medium|synthetic-large|dataset
+--dataset-path ./corpus.jsonl
+--dataset-format jsonl|text-dir
+--text-field body
+--id-field slug
+--top-k 10
+--poll-interval-ms 250
+--max-wait-s 120
+```
+
+Real-data local corpus run:
+
+```bash
+PYTHONPATH=src python3 -m freshness_benchmark.cli run \
+  --backend qdrant \
+  --embedding-mode precomputed \
+  --workload dataset \
+  --dataset-path tests/fixtures/sample.jsonl \
+  --dataset-format jsonl \
+  --text-field body \
+  --id-field slug \
+  --docs 3 \
+  --rate 2
+```
+
+## Run A Comparison Matrix
+
+```bash
+PYTHONPATH=src python3 -m freshness_benchmark.cli compare \
+  --backends qdrant weaviate pgvector \
+  --rates 2 5 10 \
+  --embedding-modes precomputed \
+  --docs 200 \
+  --workload synthetic-medium
+```
+
+Add `live` to `--embedding-modes` when you want end-to-end comparisons and have API credentials configured.
+
+Required local smoke gates before extending the benchmark further:
+
+```bash
+PYTHONPATH=src python3 -m freshness_benchmark.cli compare \
+  --backends qdrant weaviate pgvector \
+  --rates 2 \
+  --embedding-modes precomputed \
+  --docs 5 \
+  --workload synthetic-small
+```
+
+```bash
+PYTHONPATH=src python3 -m freshness_benchmark.cli compare \
+  --backends qdrant weaviate pgvector \
+  --rates 2 \
+  --embedding-modes precomputed \
+  --docs 3 \
+  --workload dataset \
+  --dataset-path tests/fixtures/sample.jsonl \
+  --dataset-format jsonl \
+  --text-field body \
+  --id-field slug
+```
 
 ## Outputs
 
-Each run writes to `artifacts/<run_id>/`:
-- `trace.jsonl` (one lifecycle record per doc)
-- `metrics.csv` (tabular lifecycle + latency)
-- `summary.json` (aggregates + run config)
+Single run artifacts under `artifacts/<run-id>/`:
 
-## Generate HTML report
+- `trace.jsonl`
+- `metrics.csv`
+- `summary.json`
+- `report.html`
 
-Generate a one-page visualization report (KPI cards + histogram + CDF + stage breakdown):
+Comparison artifacts under `artifacts/<compare-id>/`:
+
+- `comparison.json`
+- `comparison.csv`
+- `comparison.html`
+- `runs/<run-id>/...` for each underlying run
+
+## Report Generation
+
+Regenerate the latest single-run HTML report:
 
 ```bash
-PYTHONPATH=src python -m freshness_benchmark.cli report
+PYTHONPATH=src python3 -m freshness_benchmark.cli report
 ```
 
-By default this picks the latest run in `artifacts/` and writes:
-
-`artifacts/<latest-run>/report.html`
-
-Optional:
+## Tests
 
 ```bash
-PYTHONPATH=src python -m freshness_benchmark.cli report \
-  --run-dir artifacts/20260227T163212Z \
-  --out-file artifacts/20260227T163212Z/report.html
-```
-
-## Run tests
-
-```bash
-python -m unittest discover -s tests -p "test_*.py"
+python3 -m unittest discover -s tests -p "test_*.py"
 ```
