@@ -77,7 +77,22 @@ PYTHONPATH=src python3 -m freshness_benchmark.cli compare \
   --id-field slug
 ```
 
-## 7) Generate A Report For The Latest Single Run
+## 7) Run The Benchmark Pack
+
+```bash
+scripts/run_benchmark_pack.sh --pack-id baseline-pack
+```
+
+Optional live realism check:
+
+```bash
+export OPENROUTER_API_KEY=your_key_here
+scripts/run_benchmark_pack.sh \
+  --pack-id baseline-pack-live \
+  --presets baseline_docs_precomputed baseline_synthetic_precomputed embedding_reality_check
+```
+
+## 8) Generate A Report For The Latest Single Run
 
 ```bash
 PYTHONPATH=src python3 -m freshness_benchmark.cli report
@@ -87,3 +102,4 @@ Outputs:
 
 - Single run: `artifacts/<run-id>/trace.jsonl`, `metrics.csv`, `summary.json`, `report.html`
 - Comparison: `artifacts/<compare-id>/comparison.json`, `comparison.csv`, `comparison.html`
+- Benchmark pack: `artifacts/<pack-id>/benchmark_pack.json`, `benchmark_pack.csv`, `benchmark_pack.html`

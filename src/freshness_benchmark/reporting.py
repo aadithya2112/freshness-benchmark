@@ -6,7 +6,14 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
-from .models import CompareRow, CompareSummary, DocLifecycle, RunSummary
+from .models import (
+    BenchmarkPackRow,
+    BenchmarkPackSummary,
+    CompareRow,
+    CompareSummary,
+    DocLifecycle,
+    RunSummary,
+)
 
 
 def percentile(values: list[float], pct: float) -> float | None:
@@ -204,6 +211,38 @@ def write_compare_csv(path: Path, rows: list[CompareRow]) -> None:
 
 
 def write_compare_summary_json(path: Path, summary: CompareSummary) -> None:
+    with path.open("w", encoding="utf-8") as f:
+        json.dump(asdict(summary), f, indent=2)
+
+
+def write_benchmark_pack_csv(path: Path, rows: list[BenchmarkPackRow]) -> None:
+    fieldnames = list(rows[0].to_record().keys()) if rows else [
+        "pack_id",
+        "preset",
+        "backend",
+        "embedding_mode",
+        "workload",
+        "rate",
+        "docs_total",
+        "trials",
+        "median_success_rate",
+        "median_freshness_p50_ms",
+        "median_freshness_p95_ms",
+        "median_embedding_p50_ms",
+        "median_write_ack_p50_ms",
+        "median_visibility_p50_ms",
+        "median_actual_submission_rate",
+        "median_actual_completion_rate",
+        "trial_compare_ids",
+    ]
+    with path.open("w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        for row in rows:
+            writer.writerow(row.to_record())
+
+
+def write_benchmark_pack_summary_json(path: Path, summary: BenchmarkPackSummary) -> None:
     with path.open("w", encoding="utf-8") as f:
         json.dump(asdict(summary), f, indent=2)
 

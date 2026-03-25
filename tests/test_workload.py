@@ -95,6 +95,24 @@ class WorkloadTest(unittest.TestCase):
         self.assertEqual(docs[0].source_ref, "guides/intro.md")
         self.assertIn("freshness-anchor-guides/intro.md", docs[0].text)
 
+    def test_load_bundled_docs_pack(self) -> None:
+        config = _base_config()
+        config.workload = "dataset"
+        config.docs = 5
+        config.dataset_path = str(
+            Path(__file__).resolve().parents[1] / "benchmarks" / "corpora" / "docs_pack.jsonl"
+        )
+        config.dataset_format = "jsonl"
+        config.text_field = "body"
+        config.id_field = "doc_id"
+        config.validate()
+
+        docs = load_workload_docs(config)
+        self.assertEqual(len(docs), 5)
+        self.assertEqual(docs[0].doc_id, "ingestion-01-overview")
+        self.assertIn("Freshness benchmark retrieval anchor", docs[0].text)
+        self.assertIn("Start with one clear rule", docs[0].source_text)
+
 
 if __name__ == "__main__":
     unittest.main()

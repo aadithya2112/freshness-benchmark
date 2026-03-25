@@ -6,7 +6,7 @@ from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .models import BenchmarkConfig, CompareConfig
+from .models import BenchmarkConfig, BenchmarkPackConfig, CompareConfig
 
 
 def _default_id(prefix: str) -> str:
@@ -104,6 +104,51 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Output directory. Defaults to ./artifacts/<compare-id>",
     )
+
+    pack_parser = subparsers.add_parser(
+        "pack",
+        help="Run pinned benchmark-pack presets with repeated trials",
+    )
+    pack_parser.add_argument("--pack-id", default=None)
+    pack_parser.add_argument(
+        "--presets",
+        nargs="+",
+        choices=[
+            "baseline_docs_precomputed",
+            "baseline_synthetic_precomputed",
+            "embedding_reality_check",
+        ],
+        default=[
+            "baseline_docs_precomputed",
+            "baseline_synthetic_precomputed",
+        ],
+    )
+    pack_parser.add_argument("--trials", type=int, default=3)
+    pack_parser.add_argument("--collection", default="freshness_benchmark")
+    pack_parser.add_argument("--qdrant-url", default="http://localhost:6333")
+    pack_parser.add_argument("--weaviate-url", default="http://localhost:8080")
+    pack_parser.add_argument(
+        "--pgvector-dsn",
+        default=os.getenv(
+            "PGVECTOR_DSN",
+            "postgresql://postgres:postgres@localhost:5432/freshness",
+        ),
+    )
+    pack_parser.add_argument("--provider", default="openrouter")
+    pack_parser.add_argument("--base-url", default="https://openrouter.ai/api/v1")
+    pack_parser.add_argument("--embedding-model", default="text-embedding-3-small")
+    pack_parser.add_argument("--embedding-dimensions", type=int, default=128)
+    pack_parser.add_argument("--embedding-concurrency", type=int, default=4)
+    pack_parser.add_argument("--write-concurrency", type=int, default=4)
+    pack_parser.add_argument("--search-concurrency", type=int, default=8)
+    pack_parser.add_argument("--top-k", type=int, default=10)
+    pack_parser.add_argument("--poll-interval-ms", type=int, default=250)
+    pack_parser.add_argument("--max-wait-s", type=int, default=120)
+    pack_parser.add_argument(
+        "--out-dir",
+        default=None,
+        help="Output directory. Defaults to ./artifacts/<pack-id>",
+    )
     return parser
 
 
@@ -187,3 +232,46 @@ def compare_config_from_args(args: argparse.Namespace) -> CompareConfig:
     )
     compare_cfg.validate()
     return compare_cfg
+
+
+def pack_config_from_args(args: argparse.Namespace) -> BenchmarkPackConfig:
+    pack_id = args.pack_id or _default_id("pack")
+    out_dir = args.out_dir or str(Path("artifacts") / pack_id)
+    model = os.getenv("OPENROUTER_MODEL", args.embedding_model)
+    base_run = BenchmarkConfig(
+        run_id=f"{pack_id}-seed",
+        docs=1,
+        rate=1.0,
+        collection=args.collection,
+        backend="qdrant",
+        qdrant_url=args.qdrant_url.rstrip("/"),
+        weaviate_url=args.weaviate_url.rstrip("/"),
+        pgvector_dsn=args.pgvector_dsn,
+        embedding_mode="precomputed",
+        embedding_model=model,
+        provider=args.provider,
+        base_url=args.base_url.rstrip("/"),
+        embedding_dimensions=args.embedding_dimensions,
+        top_k=args.top_k,
+        poll_interval_ms=args.poll_interval_ms,
+        max_wait_s=args.max_wait_s,
+        embedding_concurrency=args.embedding_concurrency,
+        write_concurrency=args.write_concurrency,
+        search_concurrency=args.search_concurrency,
+        workload="synthetic-medium",
+        dataset_path=None,
+        dataset_format=None,
+        text_field=None,
+        id_field=None,
+        out_dir=str(Path(out_dir) / "seed"),
+    )
+    base_run.validate()
+    cfg = BenchmarkPackConfig(
+        pack_id=pack_id,
+        presets=list(args.presets),
+        trials=args.trials,
+        base_run_config=base_run,
+        out_dir=out_dir,
+    )
+    cfg.validate()
+    return cfg

@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import sys
 
-from .config import build_parser, compare_config_from_args, config_from_args
+from .benchmark_pack import run_benchmark_pack
+from .config import build_parser, compare_config_from_args, config_from_args, pack_config_from_args
 from .runner import run_benchmark, run_compare
 from .visualize import generate_report_from_args
 
@@ -19,6 +20,10 @@ def main(argv: list[str] | None = None) -> int:
             config = compare_config_from_args(args)
             summary = run_compare(config)
             print(f"comparison_written={config.out_dir}/comparison.html runs={len(summary.rows)}")
+        elif args.command == "pack":
+            config = pack_config_from_args(args)
+            summary = run_benchmark_pack(config)
+            print(f"benchmark_pack_written={config.out_dir}/benchmark_pack.html rows={len(summary.rows)}")
         elif args.command == "report":
             output = generate_report_from_args(args)
             print(f"report_written={output}")

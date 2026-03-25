@@ -280,3 +280,61 @@ class CompareSummary:
     generated_at: str
     rows: list[CompareRow] = field(default_factory=list)
     config: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class BenchmarkPackConfig:
+    pack_id: str
+    presets: list[str]
+    trials: int
+    base_run_config: BenchmarkConfig
+    out_dir: str
+
+    def validate(self) -> None:
+        if not self.presets:
+            raise ValueError("--presets must include at least one preset")
+        if self.trials <= 0:
+            raise ValueError("--trials must be > 0")
+
+
+@dataclass
+class BenchmarkPackRun:
+    preset: str
+    trial: int
+    compare_id: str
+    compare_dir: str
+
+
+@dataclass
+class BenchmarkPackRow:
+    pack_id: str
+    preset: str
+    backend: str
+    embedding_mode: str
+    workload: str
+    rate: float
+    docs_total: int
+    trials: int
+    median_success_rate: float | None
+    median_freshness_p50_ms: float | None
+    median_freshness_p95_ms: float | None
+    median_embedding_p50_ms: float | None
+    median_write_ack_p50_ms: float | None
+    median_visibility_p50_ms: float | None
+    median_actual_submission_rate: float | None
+    median_actual_completion_rate: float | None
+    trial_compare_ids: list[str] = field(default_factory=list)
+
+    def to_record(self) -> dict[str, Any]:
+        record = asdict(self)
+        record["trial_compare_ids"] = ",".join(self.trial_compare_ids)
+        return record
+
+
+@dataclass
+class BenchmarkPackSummary:
+    pack_id: str
+    generated_at: str
+    rows: list[BenchmarkPackRow] = field(default_factory=list)
+    trial_runs: list[BenchmarkPackRun] = field(default_factory=list)
+    config: dict[str, Any] = field(default_factory=dict)

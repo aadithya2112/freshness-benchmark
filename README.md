@@ -23,6 +23,10 @@ The benchmark supports:
   - `synthetic-medium`
   - `synthetic-large`
   - `dataset`
+- Benchmark-pack presets:
+  - `baseline_docs_precomputed`
+  - `baseline_synthetic_precomputed`
+  - `embedding_reality_check`
 
 ## Requirements
 
@@ -122,6 +126,31 @@ PYTHONPATH=src python3 -m freshness_benchmark.cli compare \
 
 Add `live` to `--embedding-modes` when you want end-to-end comparisons and have API credentials configured.
 
+## Run The Publishable Benchmark Pack
+
+Canonical command:
+
+```bash
+scripts/run_benchmark_pack.sh --pack-id baseline-pack
+```
+
+This runs the two pinned precomputed presets and writes:
+
+- `benchmark_pack.json`
+- `benchmark_pack.csv`
+- `benchmark_pack.html`
+
+Add the live realism-check preset when credentials are configured:
+
+```bash
+export OPENROUTER_API_KEY=your_key_here
+scripts/run_benchmark_pack.sh \
+  --pack-id baseline-pack-live \
+  --presets baseline_docs_precomputed baseline_synthetic_precomputed embedding_reality_check
+```
+
+The bundled docs-style corpus lives at `benchmarks/corpora/docs_pack.jsonl`.
+
 Required local smoke gates before extending the benchmark further:
 
 ```bash
@@ -162,6 +191,13 @@ Comparison artifacts under `artifacts/<compare-id>/`:
 - `comparison.html`
 - `runs/<run-id>/...` for each underlying run
 
+Benchmark-pack artifacts under `artifacts/<pack-id>/`:
+
+- `benchmark_pack.json`
+- `benchmark_pack.csv`
+- `benchmark_pack.html`
+- `presets/<preset>/trial-<n>/comparison.{json,csv,html}`
+
 ## Report Generation
 
 Regenerate the latest single-run HTML report:
@@ -175,3 +211,7 @@ PYTHONPATH=src python3 -m freshness_benchmark.cli report
 ```bash
 python3 -m unittest discover -s tests -p "test_*.py"
 ```
+
+## Methodology
+
+See `methodology.md` for the benchmark definition, fairness rationale, anchor-injection explanation, pinned presets, and validation gates.
