@@ -1,0 +1,86 @@
+,,,,,,,
+,,,,,,,
+,,,Functional Test Case Template,,,,
+,Feature,Test Case,Steps to execute test case,Expected Output,Actual Output,Status,More Information
+,Single Run - Precomputed,Run synthetic benchmark in precomputed mode,"Start local backend services.
+
+Open a terminal in the project root.
+
+Run the CLI with `run`, backend `qdrant`, embedding mode `precomputed`, a valid synthetic workload, and a small document count.
+
+Wait for the command to finish and inspect the generated run folder.","The benchmark should complete without runtime errors.
+
+The run folder should contain `trace.jsonl`, `metrics.csv`, `summary.json`, and `report.html`.
+
+The summary should record freshness-related metrics and document counts.","Synthetic precomputed execution completes successfully in the local benchmark environment.
+
+Expected artifacts are generated under the run output directory and summary metrics are populated.",Pass,"Validates the primary single-run workflow and artifact generation path."
+,Single Run - Live,Run benchmark with live embeddings,"Configure a valid embedding API key in the environment.
+
+Run the CLI with `run`, backend `weaviate` or `qdrant`, embedding mode `live`, and a supported embedding model.
+
+Wait for completion and inspect the generated artifacts.","The benchmark should complete and record embedding latency in addition to backend timing.
+
+Artifacts should be generated in the output directory.
+
+The summary should include embedding source metadata.","Live-mode flow is functionally supported and produces the expected artifact set in a configured environment.
+
+Embedding latency is captured as part of the end-to-end measurement.",Pass,"This case depends on valid credentials and outbound connectivity."
+,Dataset Workload,Run a dataset-backed benchmark,"Prepare a valid JSONL dataset or text directory.
+
+Run the CLI with workload `dataset`, a correct dataset path, a valid dataset format, and the required text field.
+
+Inspect summary and trace outputs after completion.","The benchmark should load dataset documents, inject deterministic retrieval anchors into indexed text, and complete successfully.
+
+Dataset metadata should appear in `summary.json`.
+
+Trace records should retain source references.","Dataset-backed execution is supported and records dataset configuration and source references in generated artifacts.",Pass,"The implementation supports `jsonl` and `text-dir` dataset formats."
+,Compare Workflow,Generate a comparison matrix,"Start local backends.
+
+Run the CLI with `compare`, multiple backends, at least one rate, and one embedding mode.
+
+Wait for all runs to finish and inspect the comparison output folder.","The system should execute each expanded run combination.
+
+The comparison output directory should contain `comparison.json`, `comparison.csv`, and `comparison.html`.
+
+Nested run folders should also be present.","Comparison workflow generates combined artifacts and linked per-run outputs as designed.",Pass,"Confirms matrix expansion across backend and rate combinations."
+,Benchmark Pack,Execute pinned benchmark-pack presets,"Start required local services.
+
+Run the CLI with `pack` using the default preset set or a selected preset list.
+
+Wait for trial execution to complete and inspect the pack output directory.","The system should execute repeated comparison trials for each preset.
+
+The output directory should contain `benchmark_pack.json`, `benchmark_pack.csv`, and `benchmark_pack.html`.
+
+Preset trial folders should exist under `presets/`.","Pinned preset execution and aggregated pack reporting are implemented and generate the expected outputs.",Pass,"This covers the review-oriented benchmark-pack workflow."
+,Report Regeneration,Regenerate an HTML report from existing artifacts,"Complete at least one benchmark run.
+
+Run the CLI with `report` and point it to an existing run directory, or allow it to discover the latest run.
+
+Open the regenerated HTML file.","The report command should rebuild `report.html` from stored run artifacts without rerunning the benchmark.
+
+The generated file should be readable in a browser.","Report regeneration works as intended and supports review refreshes after a prior run.",Pass,"Useful when report styling or packaging is updated after execution."
+,Validation Handling,Reject invalid dataset configuration,"Run the CLI with workload `dataset` but omit `dataset_path`, `dataset_format`, or `text_field`, or provide a missing file path.
+
+Observe the CLI response.","The CLI should fail fast with a validation error.
+
+No misleading success message or partial benchmark result should be produced.","Validation rejects malformed dataset configurations and surfaces an explicit error path.",Pass,"Confirms defensive validation in configuration handling."
+,Backend Configuration,Handle backend-specific configuration correctly,"Run the CLI separately for `qdrant`, `weaviate`, and `pgvector` using valid local endpoints.
+
+For pgvector, also verify behavior when DSN is absent or incorrect.","Each supported backend should initialize through its adapter and participate in benchmark execution when configured correctly.
+
+Missing mandatory backend configuration should produce an error.","Backend selection and adapter routing are working for the intended local setup.
+
+Error handling for invalid pgvector configuration is present.",Pass,"Confirms adapter contract usage and backend-specific validation."
+,Artifact Integrity,Verify summary and metrics consistency,"Execute a benchmark run and open `metrics.csv` and `summary.json`.
+
+Check document totals, success counts, rates, and latency fields for internal consistency.
+
+Confirm that HTML output corresponds to the underlying artifact data.","Artifact files should agree on run identity, document counts, and major metrics.
+
+HTML output should reflect the stored summary and metrics data.","Artifacts are internally coherent in sampled review runs. Minor formatting polish remains for reviewer-facing presentation.",Pass,"Final review pass should include one more formatting sweep on generated HTML."
+,Presentation Polish,Final reviewer-facing polish sweep,"Open the generated HTML reports and review documents.
+
+Check wording consistency, formatting, and naming alignment across outputs.
+
+Capture any remaining refinements.","Reviewer-facing material should be consistent, polished, and presentation-ready.","Core content is complete, but a small final wording and layout pass is still pending before final submission.",Pending,"This is intentionally marked pending because the project is in the final polishing stage."
