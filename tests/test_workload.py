@@ -48,6 +48,14 @@ class WorkloadTest(unittest.TestCase):
         self.assertIn("freshness-anchor-doc-000001", doc.text)
         self.assertEqual(doc.text, doc.source_text)
 
+    def test_synthetic_offset_returns_non_overlapping_ranges(self) -> None:
+        config = _base_config()
+        preload_docs = load_workload_docs(config, count=2)
+        measured_docs = load_workload_docs(config, offset=2, count=3)
+
+        self.assertEqual([doc.doc_id for doc in preload_docs], ["doc-000001", "doc-000002"])
+        self.assertEqual([doc.doc_id for doc in measured_docs], ["doc-000003", "doc-000004", "doc-000005"])
+
     def test_load_jsonl_dataset_with_explicit_fields(self) -> None:
         config = _base_config()
         config.workload = "dataset"
@@ -79,6 +87,26 @@ class WorkloadTest(unittest.TestCase):
 
             docs = load_workload_docs(config)
             self.assertEqual([doc.doc_id for doc in docs], ["row-000001", "row-000002"])
+
+    def test_load_jsonl_dataset_with_offset(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            dataset = Path(td) / "rows.jsonl"
+            dataset.write_text(
+                '{"text":"First","slug":"a"}\n{"text":"Second","slug":"b"}\n{"text":"Third","slug":"c"}\n',
+                encoding="utf-8",
+            )
+
+            config = _base_config()
+            config.workload = "dataset"
+            config.docs = 2
+            config.dataset_path = str(dataset)
+            config.dataset_format = "jsonl"
+            config.text_field = "text"
+            config.id_field = "slug"
+            config.validate()
+
+            docs = load_workload_docs(config, offset=1, count=2)
+            self.assertEqual([doc.doc_id for doc in docs], ["b", "c"])
 
     def test_load_text_dir_dataset(self) -> None:
         config = _base_config()
@@ -112,6 +140,23 @@ class WorkloadTest(unittest.TestCase):
         self.assertEqual(docs[0].doc_id, "ingestion-01-overview")
         self.assertIn("Freshness benchmark retrieval anchor", docs[0].text)
         self.assertIn("Start with one clear rule", docs[0].source_text)
+
+    def test_dataset_offset_raises_when_too_few_docs_remain(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            dataset = Path(td) / "rows.jsonl"
+            dataset.write_text('{"text":"Only one"}\n', encoding="utf-8")
+
+            config = _base_config()
+            config.workload = "dataset"
+            config.docs = 1
+            config.dataset_path = str(dataset)
+            config.dataset_format = "jsonl"
+            config.text_field = "text"
+            config.id_field = None
+            config.validate()
+
+            with self.assertRaisesRegex(ValueError, "required after offset 1"):
+                load_workload_docs(config, offset=1, count=1)
 
 
 if __name__ == "__main__":

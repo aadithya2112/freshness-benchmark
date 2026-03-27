@@ -72,7 +72,11 @@ class VisualizeTest(unittest.TestCase):
   "finished_at": "2026-03-01T00:00:01+00:00",
   "backend_info": {"name": "qdrant", "version": "1.13.4"},
   "environment": {"platform": "macOS"},
-  "config": {}
+  "config": {},
+  "preload_docs": 3,
+  "preload_written": 3,
+  "preload_wall_clock_s": 1.2,
+  "preload_run_id": "r1__preload"
 }""",
                 encoding="utf-8",
             )
@@ -87,6 +91,7 @@ class VisualizeTest(unittest.TestCase):
             self.assertTrue(output.exists())
             self.assertIn("Freshness Benchmark V2", content)
             self.assertIn("Run <strong>r1</strong>", content)
+            self.assertIn("Preloaded <strong>3</strong> docs", content)
 
     def test_generate_comparison_html_report_writes_file(self) -> None:
         with tempfile.TemporaryDirectory() as td:
@@ -115,7 +120,8 @@ class VisualizeTest(unittest.TestCase):
       "visibility_p50_ms": 95.0,
       "actual_submission_rate": 2.0,
       "actual_completion_rate": 1.9,
-      "run_dir": "artifacts/r1"
+      "run_dir": "artifacts/r1",
+      "preload_docs": 5
     }
   ],
   "config": {}
@@ -127,6 +133,7 @@ class VisualizeTest(unittest.TestCase):
             self.assertTrue(output.exists())
             self.assertIn("Freshness Comparison", content)
             self.assertIn("qdrant", content)
+            self.assertIn("Preload Docs", content)
 
 
 if __name__ == "__main__":

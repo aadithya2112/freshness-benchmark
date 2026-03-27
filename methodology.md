@@ -16,6 +16,17 @@ Stage metrics:
 
 The primary metric is the headline number because it matches the user-facing question. The stage metrics exist to explain where time is being spent.
 
+## Large-Index Freshness Mode
+
+When `--preload-docs` is greater than zero, the runner first writes setup documents into the same collection, class, or table using a separate preload run id. It then measures freshness only for the following `--docs` documents.
+
+This mode is intended to answer a different operational question:
+
+- how quickly do new writes become searchable when the backend already stores a large corpus
+- without mixing preload documents into the measured freshness metrics
+
+The measured search visibility rule still filters to the measured run id, so the benchmark remains focused on ingest freshness rather than whole-corpus retrieval behavior.
+
 ## Fairness Baseline
 
 The benchmark pack uses `precomputed` mode as the fairness baseline.

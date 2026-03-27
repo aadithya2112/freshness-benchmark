@@ -43,14 +43,26 @@ class FakeEmbeddingSource:
 
 class FakeBackend:
     name = "fake"
+    _shared_lock = threading.Lock()
+    _shared_entries: dict[str, dict[str, dict[str, object]]] = {}
+    _shared_writes: dict[str, list[dict[str, object]]] = {}
 
     def __init__(self, backend_name: str, run_id: str, visible_after_s: float = 0.15) -> None:
         self.backend_name = backend_name
         self.run_id = run_id
         self.visible_after_s = visible_after_s
-        self._lock = threading.Lock()
-        self._entries: dict[str, dict[str, object]] = {}
         self._prepared = False
+
+    @classmethod
+    def reset_shared(cls) -> None:
+        with cls._shared_lock:
+            cls._shared_entries = {}
+            cls._shared_writes = {}
+
+    @classmethod
+    def writes_for(cls, backend_name: str) -> list[dict[str, object]]:
+        with cls._shared_lock:
+            return list(cls._shared_writes.get(backend_name, []))
 
     def prepare_run(self, vector_size: int) -> None:
         self._prepared = True
@@ -58,24 +70,37 @@ class FakeBackend:
         self.vector_size = vector_size
 
     def reset_run_data(self) -> None:
-        with self._lock:
-            self._entries = {}
+        with self._shared_lock:
+            entries = self._shared_entries.setdefault(self.backend_name, {})
+            self._shared_entries[self.backend_name] = {
+                point_id: entry
+                for point_id, entry in entries.items()
+                if entry["payload"]["run_id"] != self.run_id
+            }
 
     def upsert(self, point_id: str, vector: list[float], payload: dict[str, object]) -> None:
-        with self._lock:
-            self._entries[point_id] = {
+        with self._shared_lock:
+            self._shared_entries.setdefault(self.backend_name, {})[point_id] = {
                 "vector": list(vector),
                 "payload": dict(payload),
                 "visible_at": time.monotonic() + self.visible_after_s,
             }
+            self._shared_writes.setdefault(self.backend_name, []).append(
+                {
+                    "point_id": point_id,
+                    "run_id": payload["run_id"],
+                    "doc_id": payload["doc_id"],
+                    "written_at": time.time(),
+                }
+            )
 
     def search(self, vector: list[float], limit: int) -> list[dict[str, object]]:
         now = time.monotonic()
-        with self._lock:
+        with self._shared_lock:
             visible = [
                 entry
-                for entry in self._entries.values()
-                if entry["visible_at"] <= now
+                for entry in self._shared_entries.get(self.backend_name, {}).values()
+                if entry["visible_at"] <= now and entry["payload"]["run_id"] == self.run_id
             ]
         visible.sort(key=lambda entry: abs(entry["vector"][0] - vector[0]))
         return [{"payload": entry["payload"]} for entry in visible[:limit]]
@@ -119,6 +144,7 @@ def _config(tmpdir: str, *, run_id: str = "run-1") -> BenchmarkConfig:
 
 class RunnerTest(unittest.TestCase):
     def test_pipeline_submits_later_docs_before_earlier_doc_is_searchable(self) -> None:
+        FakeBackend.reset_shared()
         with tempfile.TemporaryDirectory() as td:
             config = _config(td)
             summary = run_benchmark(
@@ -138,8 +164,10 @@ class RunnerTest(unittest.TestCase):
             third_submitted = datetime.fromisoformat(records[2]["t_submitted"])
             self.assertLess(third_submitted, first_searchable)
             self.assertGreater(summary.actual_submission_rate, 10.0)
+            self.assertEqual(summary.preload_docs, 0)
 
     def test_compare_writes_combined_artifacts(self) -> None:
+        FakeBackend.reset_shared()
         with tempfile.TemporaryDirectory() as td:
             base_run = _config(str(Path(td) / "runs" / "seed"))
             compare_config = CompareConfig(
@@ -161,6 +189,7 @@ class RunnerTest(unittest.TestCase):
             self.assertTrue((Path(td) / "comparison.html").exists())
 
     def test_partial_failures_are_accounted_for(self) -> None:
+        FakeBackend.reset_shared()
         with tempfile.TemporaryDirectory() as td:
             config = _config(td, run_id="run-errors")
             config.docs = 2
@@ -176,6 +205,7 @@ class RunnerTest(unittest.TestCase):
             self.assertEqual(summary.docs_error, 1)
 
     def test_dataset_workload_runs_and_records_dataset_metadata(self) -> None:
+        FakeBackend.reset_shared()
         with tempfile.TemporaryDirectory() as td:
             config = _config(td, run_id="run-dataset")
             config.workload = "dataset"
@@ -197,6 +227,65 @@ class RunnerTest(unittest.TestCase):
             trace = (Path(td) / "trace.jsonl").read_text(encoding="utf-8")
             self.assertIn("Intro post about freshness benchmarking.", trace)
             self.assertIn("freshness-anchor-intro-post", trace)
+
+    def test_preload_docs_are_written_before_measured_phase_and_excluded_from_metrics(self) -> None:
+        FakeBackend.reset_shared()
+        with tempfile.TemporaryDirectory() as td:
+            config = _config(td, run_id="run-preload")
+            config.docs = 2
+            config.preload_docs = 2
+            summary = run_benchmark(
+                config,
+                backend_factory=lambda cfg: FakeBackend(cfg.backend, cfg.run_id, visible_after_s=0.01),
+                embedding_source_factory=lambda cfg: FakeEmbeddingSource(dimensions=cfg.embedding_dimensions),
+            )
+
+            trace_path = Path(td) / "trace.jsonl"
+            records = [
+                json.loads(line)
+                for line in trace_path.read_text(encoding="utf-8").splitlines()
+                if line.strip()
+            ]
+            writes = FakeBackend.writes_for(config.backend)
+            preload_writes = [write for write in writes if write["run_id"] == summary.preload_run_id]
+            measured_writes = [write for write in writes if write["run_id"] == config.run_id]
+
+            self.assertEqual(summary.preload_docs, 2)
+            self.assertEqual(summary.preload_written, 2)
+            self.assertEqual(summary.docs_total, 2)
+            self.assertEqual([record["doc_id"] for record in records], ["doc-000003", "doc-000004"])
+            self.assertEqual(len(preload_writes), 2)
+            self.assertEqual(len(measured_writes), 2)
+            self.assertLessEqual(
+                max(write["written_at"] for write in preload_writes),
+                datetime.fromisoformat(records[0]["t_submitted"]).timestamp(),
+            )
+
+    def test_compare_artifacts_include_preload_docs(self) -> None:
+        FakeBackend.reset_shared()
+        with tempfile.TemporaryDirectory() as td:
+            base_run = _config(str(Path(td) / "runs" / "seed"), run_id="seed")
+            base_run.docs = 2
+            base_run.preload_docs = 3
+            compare_config = CompareConfig(
+                compare_id="cmp-preload",
+                backends=["qdrant"],
+                rates=[2.0],
+                embedding_modes=["precomputed"],
+                base_run_config=base_run,
+                out_dir=td,
+            )
+            run_compare(
+                compare_config,
+                backend_factory=lambda cfg: FakeBackend(cfg.backend, cfg.run_id, visible_after_s=0.01),
+                embedding_source_factory=lambda cfg: FakeEmbeddingSource(dimensions=cfg.embedding_dimensions),
+            )
+
+            comparison_json = (Path(td) / "comparison.json").read_text(encoding="utf-8")
+            comparison_csv = (Path(td) / "comparison.csv").read_text(encoding="utf-8")
+            self.assertIn('"preload_docs": 3', comparison_json)
+            self.assertIn("preload_docs", comparison_csv)
+            self.assertIn(",3", comparison_csv)
 
 
 if __name__ == "__main__":

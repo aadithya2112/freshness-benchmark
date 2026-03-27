@@ -312,6 +312,23 @@ def generate_html_report(run_dir: Path, out_file: Path | None = None) -> Path:
         if summary.get("dataset")
         else html.escape(summary["workload"])
     )
+    preload_docs = int(summary.get("preload_docs") or 0)
+    preload_written = int(summary.get("preload_written") or 0)
+    preload_wall_clock_s = summary.get("preload_wall_clock_s")
+    preload_note = ""
+    if preload_docs:
+        preload_time = (
+            f"{float(preload_wall_clock_s):.1f}s"
+            if preload_wall_clock_s is not None
+            else "n/a"
+        )
+        preload_note = (
+            "<div class='panel note'>"
+            f"Preloaded <strong>{preload_written}</strong> docs into the same backend before measurement "
+            f"(requested <strong>{preload_docs}</strong>, wall clock <strong>{html.escape(preload_time)}</strong>). "
+            "Preload docs are excluded from freshness metrics."
+            "</div>"
+        )
     html_content = f"""<!doctype html>
 <html lang="en">
 <head>
@@ -356,6 +373,10 @@ def generate_html_report(run_dir: Path, out_file: Path | None = None) -> Path:
     }}
     .card {{ padding: 14px; }}
     .panel {{ padding: 14px; margin-bottom: 14px; }}
+    .note {{
+      border-color: rgba(15,118,110,0.22);
+      background: linear-gradient(135deg, rgba(15,118,110,0.08), rgba(255,253,248,0.98));
+    }}
     .k {{ font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }}
     .v {{ margin-top: 8px; font-size: 24px; font-weight: 700; }}
     .meta {{
@@ -383,6 +404,7 @@ def generate_html_report(run_dir: Path, out_file: Path | None = None) -> Path:
   <div class="wrap">
     <h1>Freshness Benchmark V2</h1>
     <p class="sub">Run <strong>{html.escape(summary['run_id'])}</strong> on <strong>{html.escape(summary['backend'])}</strong> · mode <strong>{html.escape(summary['embedding_mode'])}</strong> · source <strong>{source_label}</strong></p>
+    {preload_note}
     <div class="grid">
       <div class="card"><div class="k">p50 freshness</div><div class="v">{_fmt_ms(summary['freshness_ms']['p50'])}</div></div>
       <div class="card"><div class="k">p95 freshness</div><div class="v">{_fmt_ms(summary['freshness_ms']['p95'])}</div></div>
@@ -450,6 +472,7 @@ def generate_comparison_html_report(
             f"<td>{html.escape(str(row['backend']))}</td>"
             f"<td>{html.escape(str(row['embedding_mode']))}</td>"
             f"<td>{float(row['rate']):.2f}</td>"
+            f"<td>{int(row.get('preload_docs') or 0)}</td>"
             f"<td>{_fmt_ms(row.get('freshness_p50_ms'))}</td>"
             f"<td>{_fmt_ms(row.get('freshness_p95_ms'))}</td>"
             f"<td>{row['success_rate'] * 100.0:.1f}%</td>"
@@ -523,6 +546,7 @@ def generate_comparison_html_report(
             <th>Backend</th>
             <th>Embedding Mode</th>
             <th>Rate</th>
+            <th>Preload Docs</th>
             <th>p50 Freshness</th>
             <th>p95 Freshness</th>
             <th>Success Rate</th>

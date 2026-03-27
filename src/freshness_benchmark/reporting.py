@@ -62,6 +62,9 @@ def summarize(
     wall_clock_s: float,
     actual_submission_rate: float,
     actual_completion_rate: float,
+    preload_written: int = 0,
+    preload_wall_clock_s: float | None = None,
+    preload_run_id: str | None = None,
 ) -> RunSummary:
     docs_total = len(records)
     docs_success = sum(1 for r in records if r.status == "success")
@@ -107,6 +110,10 @@ def summarize(
         backend_info=backend_info,
         environment=environment,
         config=config,
+        preload_docs=int(config.get("preload_docs", 0) or 0),
+        preload_written=preload_written,
+        preload_wall_clock_s=preload_wall_clock_s,
+        preload_run_id=preload_run_id,
     )
 
 
@@ -137,6 +144,7 @@ def compare_row_from_summary(
         actual_submission_rate=summary.actual_submission_rate,
         actual_completion_rate=summary.actual_completion_rate,
         run_dir=run_dir,
+        preload_docs=summary.preload_docs,
     )
 
 
@@ -202,6 +210,7 @@ def write_compare_csv(path: Path, rows: list[CompareRow]) -> None:
         "actual_submission_rate",
         "actual_completion_rate",
         "run_dir",
+        "preload_docs",
     ]
     with path.open("w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
@@ -249,6 +258,20 @@ def write_benchmark_pack_summary_json(path: Path, summary: BenchmarkPackSummary)
 
 def print_summary(summary: RunSummary) -> None:
     print(f"run_id={summary.run_id} backend={summary.backend} embedding_mode={summary.embedding_mode}")
+    if summary.preload_docs:
+        preload_time = (
+            f"{summary.preload_wall_clock_s:.2f}s"
+            if summary.preload_wall_clock_s is not None
+            else "n/a"
+        )
+        print(
+            "preload docs={docs} written={written} run_id={run_id} wall_clock={wall_clock}".format(
+                docs=summary.preload_docs,
+                written=summary.preload_written,
+                run_id=summary.preload_run_id,
+                wall_clock=preload_time,
+            )
+        )
     if summary.dataset:
         print(
             "dataset mode={mode} format={format} path={path}".format(

@@ -2,6 +2,8 @@
 
 Benchmark how long it takes for a document to become searchable after submission.
 
+When `--preload-docs` is enabled, the benchmark first writes setup documents into the same backend and then measures freshness only for the following `--docs` documents. This simulates ingesting into an already-large collection without changing the freshness metric itself.
+
 Primary metric:
 
 `freshness_ms = t_searchable - t_submitted`
@@ -88,6 +90,7 @@ Useful flags:
 --embedding-concurrency 4
 --write-concurrency 4
 --search-concurrency 8
+--preload-docs 0
 --workload synthetic-small|synthetic-medium|synthetic-large|dataset
 --dataset-path ./corpus.jsonl
 --dataset-format jsonl|text-dir
@@ -111,6 +114,18 @@ PYTHONPATH=src python3 -m freshness_benchmark.cli run \
   --id-field slug \
   --docs 3 \
   --rate 2
+```
+
+Large-index freshness run:
+
+```bash
+PYTHONPATH=src python3 -m freshness_benchmark.cli run \
+  --backend qdrant \
+  --embedding-mode precomputed \
+  --workload synthetic-medium \
+  --preload-docs 100000 \
+  --docs 100 \
+  --rate 5
 ```
 
 ## Run A Comparison Matrix

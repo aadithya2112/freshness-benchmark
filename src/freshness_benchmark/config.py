@@ -15,6 +15,7 @@ def _default_id(prefix: str) -> str:
 
 def _add_shared_run_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--docs", type=int, default=200)
+    parser.add_argument("--preload-docs", type=int, default=0)
     parser.add_argument("--rate", type=float, default=5.0)
     parser.add_argument("--collection", default="freshness_benchmark")
     parser.add_argument("--backend", choices=["qdrant", "weaviate", "pgvector"], default="qdrant")
@@ -141,6 +142,7 @@ def build_parser() -> argparse.ArgumentParser:
     pack_parser.add_argument("--embedding-concurrency", type=int, default=4)
     pack_parser.add_argument("--write-concurrency", type=int, default=4)
     pack_parser.add_argument("--search-concurrency", type=int, default=8)
+    pack_parser.add_argument("--preload-docs", type=int, default=0)
     pack_parser.add_argument("--top-k", type=int, default=10)
     pack_parser.add_argument("--poll-interval-ms", type=int, default=250)
     pack_parser.add_argument("--max-wait-s", type=int, default=120)
@@ -183,6 +185,7 @@ def config_from_args(args: argparse.Namespace) -> BenchmarkConfig:
         text_field=args.text_field,
         id_field=args.id_field,
         out_dir=out_dir,
+        preload_docs=args.preload_docs,
     )
     cfg.validate()
     return cfg
@@ -215,6 +218,7 @@ def compare_config_from_args(args: argparse.Namespace) -> CompareConfig:
                 "dataset_format": args.dataset_format,
                 "text_field": args.text_field,
                 "id_field": args.id_field,
+                "preload_docs": args.preload_docs,
                 "top_k": args.top_k,
                 "poll_interval_ms": args.poll_interval_ms,
                 "max_wait_s": args.max_wait_s,
@@ -264,6 +268,7 @@ def pack_config_from_args(args: argparse.Namespace) -> BenchmarkPackConfig:
         text_field=None,
         id_field=None,
         out_dir=str(Path(out_dir) / "seed"),
+        preload_docs=args.preload_docs,
     )
     base_run.validate()
     cfg = BenchmarkPackConfig(

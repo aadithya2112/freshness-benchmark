@@ -118,25 +118,157 @@ def _run_embedding(
     return vector
 
 
+def _upsert_document(
+    backend: VectorBackend,
+    preparation: _BackendPreparation,
+    *,
+    point_id: str,
+    run_id: str,
+    doc_id: str,
+    text: str,
+    source_ref: str | None,
+    vector: list[float],
+) -> None:
+    preparation.ensure(len(vector))
+    backend.upsert(
+        point_id=point_id,
+        vector=vector,
+        payload={
+            "run_id": run_id,
+            "doc_id": doc_id,
+            "text": text,
+            "source_ref": source_ref,
+        },
+    )
+
+
 def _run_write(
     backend: VectorBackend,
     preparation: _BackendPreparation,
     lifecycle: DocLifecycle,
     vector: list[float],
 ) -> list[float]:
-    preparation.ensure(len(vector))
-    backend.upsert(
+    _upsert_document(
+        backend,
+        preparation,
         point_id=lifecycle.doc_id,
+        run_id=lifecycle.run_id,
+        doc_id=lifecycle.doc_id,
+        text=lifecycle.text,
+        source_ref=lifecycle.source_ref,
         vector=vector,
-        payload={
-            "run_id": lifecycle.run_id,
-            "doc_id": lifecycle.doc_id,
-            "text": lifecycle.text,
-            "source_ref": lifecycle.source_ref,
-        },
     )
     lifecycle.t_write_acked = now_utc()
     return vector
+
+
+def _preload_run_id(run_id: str) -> str:
+    return f"{run_id}__preload"
+
+
+def _run_preload_write(
+    backend: VectorBackend,
+    preparation: _BackendPreparation,
+    run_id: str,
+    doc_id: str,
+    text: str,
+    source_ref: str | None,
+    vector: list[float],
+) -> None:
+    _upsert_document(
+        backend,
+        preparation,
+        point_id=f"preload::{doc_id}",
+        run_id=run_id,
+        doc_id=doc_id,
+        text=text,
+        source_ref=source_ref,
+        vector=vector,
+    )
+
+
+def _preload_documents(
+    config: BenchmarkConfig,
+    backend: VectorBackend,
+    embedding_source: EmbeddingSource,
+    preload_run_id: str,
+    workload_docs: list,
+) -> tuple[int, float]:
+    if not workload_docs:
+        return 0, 0.0
+
+    start_monotonic = time.monotonic()
+    preparation = _BackendPreparation(backend)
+    final_futures: list[Future[None]] = []
+
+    try:
+        if embedding_source.dimensions is not None:
+            preparation.ensure(embedding_source.dimensions)
+        with ThreadPoolExecutor(max_workers=config.embedding_concurrency) as embed_pool, ThreadPoolExecutor(
+            max_workers=config.write_concurrency
+        ) as write_pool:
+            for workload_doc in workload_docs:
+                final_future: Future[None] = Future()
+                final_futures.append(final_future)
+
+                embed_future = embed_pool.submit(
+                    embedding_source.get_vector,
+                    workload_doc.doc_id,
+                    workload_doc.text,
+                )
+
+                def on_embed_done(
+                    future: Future[list[float]],
+                    *,
+                    workload_doc=workload_doc,
+                    result_future: Future[None] = final_future,
+                ) -> None:
+                    try:
+                        vector = future.result()
+                    except BaseException as exc:  # pragma: no cover - executor edge
+                        if not result_future.done():
+                            result_future.set_exception(exc)
+                        return
+
+                    write_future = write_pool.submit(
+                        _run_preload_write,
+                        backend,
+                        preparation,
+                        preload_run_id,
+                        workload_doc.doc_id,
+                        workload_doc.text,
+                        workload_doc.source_ref,
+                        vector,
+                    )
+
+                    def on_write_done(
+                        write_result: Future[None],
+                        *,
+                        result_future: Future[None] = result_future,
+                    ) -> None:
+                        try:
+                            write_result.result()
+                        except BaseException as exc:  # pragma: no cover - executor edge
+                            if not result_future.done():
+                                result_future.set_exception(exc)
+                            return
+                        if not result_future.done():
+                            result_future.set_result(None)
+
+                    write_future.add_done_callback(on_write_done)
+
+                embed_future.add_done_callback(on_embed_done)
+
+            for future in final_futures:
+                future.result()
+    except Exception:
+        for future in final_futures:
+            if future.done():
+                continue
+            future.cancel()
+        raise
+
+    return len(workload_docs), max(time.monotonic() - start_monotonic, 0.0)
 
 
 def _run_visibility_poll(
@@ -192,11 +324,12 @@ def run_benchmark(
     preparation = _BackendPreparation(backend)
     records: list[DocLifecycle] = []
     final_futures: list[Future[DocLifecycle]] = []
-    workload_docs = load_workload_docs(config)
-
-    started_at = now_utc()
-    start_monotonic = time.monotonic()
-    interval = 1.0 / config.rate
+    preload_run_id = _preload_run_id(config.run_id) if config.preload_docs else None
+    preload_workload_docs = []
+    workload_docs = []
+    preload_backend: VectorBackend | None = None
+    preload_written = 0
+    preload_wall_clock_s: float | None = None
 
     def resolve_failure(result_future: Future[DocLifecycle], lifecycle: DocLifecycle, exc: BaseException) -> None:
         lifecycle.mark_error(_stringify_error(exc))
@@ -204,6 +337,22 @@ def run_benchmark(
             result_future.set_result(lifecycle)
 
     try:
+        preload_workload_docs = load_workload_docs(config, count=config.preload_docs)
+        workload_docs = load_workload_docs(config, offset=config.preload_docs, count=config.docs)
+        if preload_run_id is not None:
+            preload_config = replace(config, run_id=preload_run_id)
+            preload_backend = backend_factory(preload_config)
+            preload_written, preload_wall_clock_s = _preload_documents(
+                config,
+                preload_backend,
+                embedding_source,
+                preload_run_id,
+                preload_workload_docs,
+            )
+
+        started_at = now_utc()
+        start_monotonic = time.monotonic()
+        interval = 1.0 / config.rate
         if embedding_source.dimensions is not None:
             preparation.ensure(embedding_source.dimensions)
         with ThreadPoolExecutor(max_workers=config.embedding_concurrency) as embed_pool, ThreadPoolExecutor(
@@ -307,6 +456,8 @@ def run_benchmark(
         backend_info = _safe_backend_info(backend)
         environment = _environment_metadata(config, embedding_source)
         embedding_source.close()
+        if preload_backend is not None:
+            preload_backend.close()
         backend.close()
 
     finished_at = now_utc()
@@ -320,6 +471,9 @@ def run_benchmark(
         wall_clock_s=completion_elapsed,
         actual_submission_rate=len(workload_docs) / submission_elapsed,
         actual_completion_rate=len(workload_docs) / completion_elapsed,
+        preload_written=preload_written,
+        preload_wall_clock_s=preload_wall_clock_s,
+        preload_run_id=preload_run_id,
     )
     write_trace_jsonl(output_dir / "trace.jsonl", records)
     write_metrics_csv(output_dir / "metrics.csv", records)

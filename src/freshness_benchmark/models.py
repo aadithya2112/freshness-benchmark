@@ -49,10 +49,13 @@ class BenchmarkConfig:
     text_field: str | None
     id_field: str | None
     out_dir: str
+    preload_docs: int = 0
 
     def validate(self) -> None:
         if self.docs <= 0:
             raise ValueError("--docs must be > 0")
+        if self.preload_docs < 0:
+            raise ValueError("--preload-docs must be >= 0")
         if self.rate <= 0:
             raise ValueError("--rate must be > 0")
         if self.top_k <= 0:
@@ -246,6 +249,10 @@ class RunSummary:
     backend_info: dict[str, Any]
     environment: dict[str, Any]
     config: dict[str, Any]
+    preload_docs: int = 0
+    preload_written: int = 0
+    preload_wall_clock_s: float | None = None
+    preload_run_id: str | None = None
 
 
 @dataclass
@@ -269,6 +276,7 @@ class CompareRow:
     actual_submission_rate: float
     actual_completion_rate: float
     run_dir: str
+    preload_docs: int = 0
 
     def to_record(self) -> dict[str, Any]:
         return asdict(self)
