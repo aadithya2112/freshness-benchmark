@@ -118,7 +118,7 @@ function render() {
     (DATA.track === "pilot" ? "Pilot · " : "") +
     (DATA.status === "complete"
       ? `${DATA.completed}/${DATA.planned} completed trials${DATA.failed ? ` · ${DATA.failed} setup failure(s)` : ""} · ${Object.keys(DATA.experiment.datasets).length} dataset(s)`
-      : `Experiment in progress · ${DATA.completed}/${DATA.planned} trials complete`);
+      : `${DATA.status === "paused" ? "Experiment paused" : "Experiment in progress"} · ${DATA.completed}/${DATA.planned} trials complete`);
   $("#scope-line").textContent =
     `${args.duration}s per trial · ${args.trials} trials per cell`;
   $("#hardware-line").textContent =

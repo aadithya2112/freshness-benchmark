@@ -42,10 +42,15 @@ def resume(root):
             if actual!=expected:raise ValueError('Container image/resource configuration changed')
     stamp=time.strftime('%Y%m%dT%H%M%SZ',time.gmtime())
     continuation=root/'continuations'/stamp;continuation.mkdir(parents=True,exist_ok=False)
-    record={'resumed_utc':stamp,'completed_prefix':len(progress),'reason':'Host/session interruption; containers restarted. Completed trials retained; partial trial archived and restarted.',
+    pause_path=root/'PAUSED.json'
+    pause=json.loads(pause_path.read_text()) if pause_path.exists() else None
+    record={'resumed_utc':stamp,'completed_prefix':len(progress),'reason':
+            'Resuming a user-requested pause; completed trials retained.' if pause else
+            'Host/session interruption; containers restarted. Completed trials retained; partial trial archived and restarted.',
             'measurement_source_unchanged':True,'environment_unchanged':True,
             'containers':[{'name':c['Name'],'started_at':c['State']['StartedAt'],'image_id':c['Image']} for c in containers],
             'resume_source_sha256':file_sha(__file__)}
+    if pause:record['paused_checkpoint']=pause
     shutil.copy2(__file__,continuation/'resume-source.py')
     (continuation/'continuation.json').write_text(json.dumps(record,indent=2)+'\n')
     controls=[]
@@ -55,6 +60,7 @@ def resume(root):
     data={name:RetrievalData(Path('benchmarks/data/v2')/name) for name in experiment['datasets']}
     for name,cache in data.items():
         if cache.manifest!=experiment['datasets'][name]:raise ValueError('Dataset/cache changed')
+    pause_path.unlink(missing_ok=True)  # The receipt is preserved in continuation.json.
     cells=experiment['order'];tag=hashlib.sha256(experiment['arguments']['out'].encode()).hexdigest()[:6]
     for index in range(len(progress),len(cells)):
         trial,backend,scenario_name=cells[index];scenario=SCENARIOS[scenario_name]

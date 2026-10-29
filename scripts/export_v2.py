@@ -114,7 +114,7 @@ def export(root,dest):
             continuations.append(continuation)
     data={'protocol':'mixed-mutations-v2','generated_utc':__import__('datetime').datetime.now(__import__('datetime').timezone.utc).isoformat(),
           'completed':sum(r['status']=='complete' for r in progress),'failed':sum(r['status']=='failed' for r in progress),
-          'planned':len(experiment['order']),'status':'complete' if len(progress)==len(experiment['order']) else 'running',
+          'planned':len(experiment['order']),'status':'complete' if len(progress)==len(experiment['order']) else 'paused' if (root/'PAUSED.json').exists() else 'running',
           'track':'reference' if reference else 'pilot',
           'experiment':experiment,'groups':groups,'runs':runs,'calibration':calibration,'continuations':continuations}
     # Local checkout paths in dependency metadata are not necessary for public reproduction.
@@ -135,7 +135,8 @@ def export(root,dest):
     with zipfile.ZipFile(dest/'benchmark-source.zip','w',compression=zipfile.ZIP_DEFLATED) as archive:
         for directory in ('src','scripts','tests','docs','benchmarks','web','.github','results'):
             for path in sorted(Path(directory).rglob('*')):
-                if path.is_file() and '__pycache__' not in path.parts and 'data' not in path.parts:
+                if (path.is_file() and '__pycache__' not in path.parts and 'data' not in path.parts
+                        and not any(part.endswith('.egg-info') for part in path.parts) and path.name!='.DS_Store'):
                     archive.write(path)
         for name in ('README.md','methodology.md','pyproject.toml','docker-compose.v2.yml','LICENSE','CITATION.cff','CONTRIBUTING.md','CHANGELOG.md'):
             archive.write(name)
