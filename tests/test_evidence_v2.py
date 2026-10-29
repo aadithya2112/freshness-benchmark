@@ -60,6 +60,22 @@ class ObservationFaultTests(unittest.TestCase):
         self.assertIsNone(event['search']['first_ms'])
         self.assertTrue(all(p['end_ms']>20 for p in probes))
 
+    def test_late_read_error_is_retained_and_auditable(self):
+        class LateError:
+            calls=0
+            def write(self,*args):pass
+            def get(self,*args):return {'doc_id':'target','version':1}
+            def search(self,*args):
+                self.calls+=1
+                if self.calls==3:
+                    time.sleep(.06)
+                    raise RuntimeError('late read failure')
+                return [{'doc_id':'target','version':1}]
+        event,probes=self.one(LateError(),deadline=.04,stable=20)
+        self.assertEqual(event['status'],'timeout')
+        self.assertEqual(event['search']['regressions'],1)
+        self.assertTrue(any('error' in p and p['end_ms']>40 for p in probes))
+
     def test_old_version_search_hit_is_not_a_fresh_update(self):
         class Stale:
             def write(self,*args):pass

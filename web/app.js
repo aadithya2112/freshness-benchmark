@@ -72,7 +72,7 @@ function version(backend) {
 }
 function resources(backend) {
   const c = DATA.experiment.containers.find(c => c.name.endsWith('-' + backend));
-  return c ? `${num(c.cpu_quota / 1e9)} CPUs / ${num(c.memory_bytes / 2 ** 30)} GiB` : 'Resource limits not recorded';
+  return c ? `${c.cpu_quota / 1e9} CPUs / ${c.memory_bytes / 2 ** 30} GiB` : 'Resource limits not recorded';
 }
 function selectedGroups() {
   return DATA.groups
@@ -117,7 +117,7 @@ function render() {
   $("#run-status").textContent =
     (DATA.track === "pilot" ? "Pilot · " : "") +
     (DATA.status === "complete"
-      ? `${DATA.completed}/${DATA.planned} completed trials · ${Object.keys(DATA.experiment.datasets).length} datasets`
+      ? `${DATA.completed}/${DATA.planned} completed trials${DATA.failed ? ` · ${DATA.failed} setup failure(s)` : ""} · ${Object.keys(DATA.experiment.datasets).length} dataset(s)`
       : `Experiment in progress · ${DATA.completed}/${DATA.planned} trials complete`);
   $("#scope-line").textContent =
     `${args.duration}s per trial · ${args.trials} trials per cell`;
@@ -235,7 +235,7 @@ function renderTable(groups) {
   $("#results-table tbody").innerHTML = groups
     .map(
       (g) =>
-        `<tr><td class="engine">${names[g.backend]}<small>v${esc(version(g.backend))} · ${g.trials}/${g.expected_trials} trials</small></td><td>${pct(g.success_rate)}<small class="sr-only"> of all submitted events</small></td><td>${ms(g.first_p95)}</td><td>${ms(g.confirmed_p95)}</td><td>${pct(g.ann_recall)}</td><td><span class="status ${g.eligible ? "" : "failed"}" title="${esc(g.failed_gates.join(", ") || "All complete trials must pass")}">${g.eligible ? "All gates pass" : g.failed_gates.length ? "Limits apply" : "Incomplete"}</span></td><td><button class="inspect" data-inspect="${g.backend}" aria-label="Inspect ${names[g.backend]} trials">Details</button></td></tr>`,
+        `<tr><td class="engine">${names[g.backend]}<small>${version(g.backend) ? "v" + esc(version(g.backend)) : "Version not recorded"} · ${g.trials}/${g.expected_trials} trials</small></td><td>${pct(g.success_rate)}<small class="sr-only"> of all submitted events</small></td><td>${ms(g.first_p95)}</td><td>${ms(g.confirmed_p95)}</td><td>${pct(g.ann_recall)}</td><td><span class="status ${g.eligible ? "" : "failed"}" title="${esc(g.failed_gates.join(", ") || "All complete trials must pass")}">${g.failed_runs ? "Setup failed" : g.eligible ? "All gates pass" : g.failed_gates.length ? "Limits apply" : "Incomplete"}</span></td><td><button class="inspect" data-inspect="${g.backend}" aria-label="Inspect ${names[g.backend]} trials">Details</button></td></tr>`,
     )
     .join("");
   document

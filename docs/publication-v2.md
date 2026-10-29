@@ -7,7 +7,7 @@ Use [the README commands](../README.md#run) with [the normative protocol](../met
 The website's Reproduce page provides:
 
 - `benchmark-source.zip`: maintained source, tests, protocol, documentation, and website code.
-- `experiment-source.tar.gz`: the exact source captured when the measurement process launched.
+- `experiment-source.tar.gz`: the exact measurement source/configuration captured at launch; use the maintained source ZIP as the complete project scaffold.
 - `benchmark-evidence.tar.gz`: the complete measurement directory, including calibration traces and failed runs, suitable for offline verification.
 - `results.json` and `results.csv`: aggregate comparisons plus provenance.
 - `evidence/<run>-<file>.gz`: individual summaries, mutation records, query records, probe traces, and exact-reference metadata.
@@ -24,7 +24,7 @@ tar -xzf benchmark-evidence.tar.gz
 .venv/bin/python scripts/verify_v2.py publication-v2 --check-data
 ```
 
-The verifier rejects missing trials, mismatched identities, changed launch source, inconsistent status totals, confirmations without adequate raw evidence, latency/statistic mismatches, incorrect validity labels, impossible acknowledgement timestamps, cardinality mismatches after acknowledged mutations, and broken calibration. A report with failed gates can still verify successfully: honest evidence of a limitation is not an integrity failure. With `--check-data`, the local cache must match the measured manifest; query quality and exact references are recomputed.
+The idle baseline is retained as aggregate statistics; the deep query-quality audit covers the measured mixed phase. The verifier rejects missing trials, mismatched identities, changed launch source, inconsistent status totals, confirmations without adequate raw evidence, latency/statistic mismatches, incorrect validity labels, impossible acknowledgement timestamps, cardinality mismatches after acknowledged mutations, and broken calibration. A report with failed gates can still verify successfully: honest evidence of a limitation is not an integrity failure. With `--check-data`, the local cache must match the measured manifest; query quality and exact references are recomputed.
 
 For an actively running experiment, `--allow-partial` audits the completed prefix. That output must not be presented as a complete reference release. Artifact summaries and release reports are generated only after data collection. No failed final run is silently substituted or rerun in place.
 
@@ -72,3 +72,22 @@ The reference includes one such continuation after a host/session interruption
 and container restart. Its first six completed trials were retained; the partial
 seventh trial was archived and restarted. Treat the continuation history as part
 of the experiment provenance, including possible cache/host-state differences.
+
+## Release tooling
+
+After the full matrix finishes, verify it, export results, generate the report,
+then build the final website and portable archives:
+
+```sh
+.venv/bin/python scripts/verify_v2.py artifacts/publication-v2 --check-data \
+  --report artifacts/publication-v2/verification.json
+.venv/bin/python scripts/export_v2.py artifacts/publication-v2
+.venv/bin/python scripts/analyze_v2.py artifacts/publication-v2
+.venv/bin/python scripts/build_website.py artifacts/publication-v2
+.venv/bin/python scripts/package_release_v2.py artifacts/publication-v2
+```
+
+The release packager refuses an incomplete or pilot matrix and checks cache
+hashes before redistributing the exact vectors. Publish the checksum inventory
+alongside the archives. The website intentionally keeps the large cache archive
+on GitHub Releases rather than including it in the initial page load.

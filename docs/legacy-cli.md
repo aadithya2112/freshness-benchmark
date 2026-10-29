@@ -1,8 +1,8 @@
 # Freshness Benchmark
 
-The current publication track is **insert visibility v1**: real Python documentation, cached semantic embeddings, collection-wide retrieval, monotonic timing and randomized independent trials. See [reproduction instructions](docs/publication.md) and the [protocol](methodology.md).
+This archived CLI guide describes **insert visibility v1**; the current protocol is documented in [the root README](../README.md). Its historical publication track used: real Python documentation, cached semantic embeddings, collection-wide retrieval, monotonic timing and randomized independent trials. See [reproduction instructions](publication.md) and the [protocol](../methodology.md).
 
-The [reference results](results/insert-v1/REPORT.md) contain 30 completed runs and 30,000 measured inserts. All three backends achieved 100% observation success under the tested conditions, and all client validity gates passed. Full reproduction and scope are documented alongside the results.
+The [reference results](../results/insert-v1/REPORT.md) contain 30 completed runs and 30,000 measured inserts. All three backends achieved 100% observation success under the tested conditions, and all client validity gates passed. Full reproduction and scope are documented alongside the results.
 
 The commands and small benchmark packs below remain useful for development. The historical “publishable pack” uses synthetic hash vectors and templated text; use the publication runner for public comparisons.
 

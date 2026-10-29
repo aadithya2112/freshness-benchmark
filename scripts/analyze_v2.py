@@ -45,7 +45,7 @@ def generate(root):
     handles,labels=axes[0,0].get_legend_handles_labels()
     fig.legend(handles,labels,loc='upper center',ncol=3,frameon=False,bbox_to_anchor=(.5,1.0))
     fig.text(.06,.015,'Empirical distributions pool events for visualization only. Statistical intervals resample trials.\nFailures remain in the denominator. Confirmation includes a 50ms observation window; client and API costs are included.',fontsize=8,color='#555555')
-    fig.tight_layout(rect=(0,.06,1,.95));fig.savefig(root/'latency-distributions.svg');fig.savefig(root/'latency-distributions.pdf');plt.close(fig)
+    fig.tight_layout(rect=(0,.06,1,.95));fig.savefig(root/'latency-distributions.svg');fig.savefig(root/'latency-distributions.pdf');fig.savefig(root/'latency-distributions.png',dpi=160);plt.close(fig)
     total=sum(g['events'] for g in data['groups']);success=sum(g['success'] for g in data['groups'])
     lines=['# Protocol 2 reference results','',
         f"{data['completed']}/{data['planned']} planned trials completed; {data['failed']} setup failures. {total:,} offered mutations; {success:,} confirmed successfully.",'',
@@ -64,6 +64,9 @@ def generate(root):
         'All trials and failed gates are preserved in `results.json`; raw traces are in the complete evidence download. The verifier reconstructs confirmations and metrics from probes and queries. The exact source at launch, data/model hashes, images, effective index configuration, CPU/throttling counters, and randomized order accompany the results.','',
         'The fixed embedding model, relevant-first subset selection, filtered immutable quality cohort, simulated disjoint-ID mutations, short trials, shared Docker host, backend-specific transports, and acknowledgement semantics bound the claims. There is no historical replay, distributed consistency test, independent external replication, or maximum-throughput measurement here.','',
         'Higher-rate diagnostic pilots and the interrupted boundary-scheduling audit are separate artifacts. They did not contribute observations to this reference matrix.']
+    interruptions=[c['interrupted_attempt'] for c in data.get('continuations',[]) if 'interrupted_attempt' in c]
+    if interruptions:
+        lines+=['','## Continuation history','',f'{len(interruptions)} partial attempt was interrupted by the host/session and retained under `continuations/`. The first six completed trials were kept, the environment and measurement-source hashes were checked, calibration was repeated, and the partial seventh trial was restarted from a fresh collection. This interruption is excluded from database reliability statistics because it lacks a terminal measurement record. Raw partial probes and continuation metadata remain in the evidence bundle. Container restart/cache-state differences are an additional limitation.']
     (root/'REPORT.md').write_text('\n'.join(lines)+'\n')
     print(f'Wrote report and SVG/PDF distributions for {total:,} offered mutations')
 

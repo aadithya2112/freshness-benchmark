@@ -56,7 +56,7 @@ def replay(samples,cfg):
         if 'error' not in p:
             require(0<=p['start_ms']<=p['end_ms'],'Noncausal probe timestamp')
             require(p['dispatch_delay_ms']>=0,'Negative probe dispatch lag')
-        if p['end_ms']>cfg['deadline_s']*1000:continue
+        if p['end_ms']>cfg['deadline_s']*1000 and 'error' not in p:continue
         if p.get('good',False):
             if first is None:first=p['end_ms']
             if since is None:since=p['end_ms']
@@ -217,7 +217,11 @@ def file_sha_local(path):
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('directory',type=Path)
     parser.add_argument('--check-data',action='store_true');parser.add_argument('--allow-partial',action='store_true')
+    parser.add_argument('--report',type=Path,help='Write JSON after verification, without truncating an artifact before it is checked')
     args=parser.parse_args()
-    try:print(json.dumps(verify(args.directory,args.check_data,args.allow_partial),indent=2))
+    try:
+        result=json.dumps(verify(args.directory,args.check_data,args.allow_partial),indent=2)
+        if args.report:args.report.write_text(result+'\n')
+        print(result)
     except (EvidenceError,OSError,KeyError,ValueError,TypeError) as error:
         parser.exit(1,f'VERIFICATION FAILED: {error}\n')

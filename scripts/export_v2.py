@@ -105,25 +105,24 @@ def export(root,dest):
     for name in ('verification.json','REPORT.md','latency-distributions.svg'):
         if (root/name).exists():shutil.copy2(root/name,dest/name)
     with zipfile.ZipFile(dest/'benchmark-source.zip','w',compression=zipfile.ZIP_DEFLATED) as archive:
-        for directory in ('src','scripts','tests','docs','benchmarks','web','.github'):
+        for directory in ('src','scripts','tests','docs','benchmarks','web','.github','results'):
             for path in sorted(Path(directory).rglob('*')):
                 if path.is_file() and '__pycache__' not in path.parts and 'data' not in path.parts:
                     archive.write(path)
-        for name in ('README.md','methodology.md','pyproject.toml','docker-compose.v2.yml','LICENSE','CITATION.cff','CONTRIBUTING.md'):
+        for name in ('README.md','methodology.md','pyproject.toml','docker-compose.v2.yml','LICENSE','CITATION.cff','CONTRIBUTING.md','CHANGELOG.md'):
             archive.write(name)
+    if data['status']=='complete':
+        (root/'checksums.json').write_text(json.dumps({str(p.relative_to(root)):file_sha(p) for p in sorted(root.rglob('*')) if p.is_file() and p.name!='checksums.json'},indent=2)+'\n')
+    else:
+        # Live files continue changing; do not claim a final integrity inventory.
+        (root/'checksums.json').unlink(missing_ok=True)
     # The portable evidence bundle contains the complete verifier input, including
     # calibration traces, failed setups, launch source, and every observation.
     with tarfile.open(dest/'benchmark-evidence.tar.gz','w:gz') as archive:
         for path in sorted(root.rglob('*')):
-            if path.is_file() and path.name!='checksums.json':archive.add(path,arcname='publication-v2/'+str(path.relative_to(root)))
+            if path.is_file():archive.add(path,arcname='publication-v2/'+str(path.relative_to(root)))
     checksums={str(p.relative_to(dest)):file_sha(p) for p in sorted(dest.rglob('*')) if p.is_file() and p.name!='checksums.json'}
     (dest/'checksums.json').write_text(json.dumps(checksums,indent=2)+'\n')
-    if data['status']=='complete':
-        (root/'checksums.json').write_text(json.dumps({str(p.relative_to(root)):file_sha(p) for p in sorted(root.rglob('*')) if p.is_file() and p.name!='checksums.json'},indent=2)+'\n')
-    else:
-        # Live files continue changing. Only the immutable website export has a
-        # valid checksum inventory until the measurement directory is complete.
-        (root/'checksums.json').unlink(missing_ok=True)
     print(f'Exported {len(progress)}/{len(experiment["order"])} cells, {len(groups)} operation comparisons')
 
 
