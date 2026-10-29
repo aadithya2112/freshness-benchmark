@@ -87,6 +87,23 @@ class ObservationFaultTests(unittest.TestCase):
 
 
 class EvidenceAuditTests(unittest.TestCase):
+    def test_omitted_arrivals_are_rejected_before_summary_checks(self):
+        with tempfile.TemporaryDirectory() as td:
+            summary=calibrate(td,duration=.2)
+            path=Path(td)/'events.jsonl'
+            path.write_text('\n'.join(path.read_text().splitlines()[:-1])+'\n')
+            with self.assertRaisesRegex(verifier.EvidenceError,'Mutation schedule count'):
+                verifier.audit_run(td,summary)
+
+    def test_shifted_arrival_is_rejected(self):
+        with tempfile.TemporaryDirectory() as td:
+            summary=calibrate(td,duration=.2)
+            path=Path(td)/'events.jsonl';events=[json.loads(s) for s in path.read_text().splitlines()]
+            events[0]['scheduled_s']+=.001
+            path.write_text(''.join(json.dumps(e)+'\n' for e in events))
+            with self.assertRaisesRegex(verifier.EvidenceError,'Mutation schedule'):
+                verifier.audit_run(td,summary)
+
     def test_summary_tampering_is_rejected(self):
         with tempfile.TemporaryDirectory() as td:
             summary=calibrate(td,duration=.2)

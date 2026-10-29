@@ -17,7 +17,8 @@ TITLES=['SciFact · 4k','NQ · 10k','NQ · 100k','NQ · 100k · burst']
 
 def generate(root):
     data=json.loads((root/'results.json').read_text())
-    if data['status']!='complete':raise ValueError('A release report requires a complete matrix')
+    if data['status']!='complete' or data.get('track')!='reference':
+        raise ValueError('A release report requires a complete reference matrix')
     events=defaultdict(list)
     for run in data['runs']:
         if run['status']=='complete':
@@ -49,17 +50,26 @@ def generate(root):
     total=sum(g['events'] for g in data['groups']);success=sum(g['success'] for g in data['groups'])
     lines=['# Protocol 2 reference results','',
         f"{data['completed']}/{data['planned']} planned trials completed; {data['failed']} setup failures. {total:,} offered mutations; {success:,} confirmed successfully.",'',
-        'This is the single-host reference for a public benchmark protocol, not a universal product ranking. The [methodology](../../methodology.md) defines the clock, quality cohort, failure handling, and limits.','',
+        'This is the single-host reference for a public benchmark protocol, not a universal product ranking. The [methodology](https://github.com/aadithya2112/freshness-benchmark/blob/v0.5.0/methodology.md) defines the clock, quality cohort, failure handling, and limits.','',
         f"Host: {data['experiment']['host']['cpu_model']}. Each container: 2 CPUs / 3 GiB. Five trials per cell, 30s admission, 10 mutations/s and 10 real-question queries/s. Burst windows offer 40 mutations/s for 1s every 10s. Observation reads add load.",'',
         '![Failure-inclusive confirmation distributions](latency-distributions.svg)','',
         '## Per-workload comparisons','',
         'Times are medians of trial p95s. Intervals are 95% bootstrap intervals over five trials. Latencies condition on successful events; success and SLO fractions use all offered mutations. “Limited” means at least one validity check failed; inspect the evidence before comparing that cell.','',
-        '| Workload | Engine | Change | Events | Confirmed | First p95 [95% CI], ms | Confirmed p95, ms | Within 100ms | ANN recall | Validity |',
+        '| Workload | Engine | Change | Events | Confirmed | First p95 [95% CI], ms | Confirmed p95 [95% CI], ms | Within 100ms | ANN recall | Validity |',
         '|---|---|---|---:|---:|---:|---:|---:|---:|---|']
     fmt=lambda value:'—' if value is None else f'{value:.2f}'
     percent=lambda value:'—' if value is None else f'{value*100:.1f}%'
     for g in data['groups']:
-        lines.append(f"| {g['scenario']} | {NAMES[g['backend']]} | {g['operation']} | {g['events']} | {percent(g['success_rate'])} | {fmt(g['first_p95'])} [{fmt(g['first_ci'][0])}, {fmt(g['first_ci'][1])}] | {fmt(g['confirmed_p95'])} | {percent(g['within_100ms'])} | {percent(g['ann_recall'])} | {'Pass' if g['eligible'] else 'Limited: '+', '.join(g['failed_gates'])} |")
+        lines.append(f"| {g['scenario']} | {NAMES[g['backend']]} | {g['operation']} | {g['events']} | {percent(g['success_rate'])} | {fmt(g['first_p95'])} [{fmt(g['first_ci'][0])}, {fmt(g['first_ci'][1])}] | {fmt(g['confirmed_p95'])} [{fmt(g['confirmed_ci'][0])}, {fmt(g['confirmed_ci'][1])}] | {percent(g['within_100ms'])} | {percent(g['ann_recall'])} | {'Pass' if g['eligible'] else 'Limited: '+', '.join(g['failed_gates'])} |")
+    lines+=['','## Retrieval during mutations','',
+        'Each trial sends 300 real-question queries to the immutable cohort in the same changing index. The idle baseline uses 100 queries before mutation admission. Times are medians of trial p95s; loaded intervals resample whole trials. ANN recall measures approximation quality, while nDCG measures agreement with relevance judgments. These are subset scores, not full BEIR scores.','',
+        '| Workload | Engine | Successful queries | Idle p95, ms | Loaded p95 [95% CI], ms | ANN recall@10 | nDCG@10 | Exact nDCG@10 |',
+        '|---|---|---:|---:|---:|---:|---:|---:|']
+    for g in data['groups']:
+        if g['operation']!='insert':continue
+        summaries=[r['summary'] for r in data['runs'] if r['run'] in g['run_ids'] and r['summary']]
+        query_count=sum(s['query']['count'] for s in summaries);query_success=sum(s['query']['success'] for s in summaries)
+        lines.append(f"| {g['scenario']} | {NAMES[g['backend']]} | {query_success}/{query_count} | {fmt(g['idle_query_p95'])} | {fmt(g['query_p95'])} [{fmt(g['query_ci'][0])}, {fmt(g['query_ci'][1])}] | {percent(g['ann_recall'])} | {fmt(g['ndcg'])} | {fmt(g['exact_ndcg'])} |")
     lines+=['','## Provenance and interpretation','',
         'All trials and failed gates are preserved in `results.json`; raw traces are in the complete evidence download. The verifier reconstructs confirmations and metrics from probes and queries. The exact source at launch, data/model hashes, images, effective index configuration, CPU/throttling counters, and randomized order accompany the results.','',
         'The fixed embedding model, relevant-first subset selection, filtered immutable quality cohort, simulated disjoint-ID mutations, short trials, shared Docker host, backend-specific transports, and acknowledgement semantics bound the claims. There is no historical replay, distributed consistency test, independent external replication, or maximum-throughput measurement here.','',

@@ -30,6 +30,35 @@ def interval(values):
     return [percentile(samples,2.5),percentile(samples,97.5)]
 
 
+def reference_configuration(experiment,runs,protocol):
+    """Recognize the declared reference workload, not merely its matrix size.
+
+    This label identifies a protocol configuration; host/cache provenance still
+    determines whether two experiments belong in the same comparison track.
+    """
+    args=experiment['arguments'];profiles=protocol['profiles'];trials=protocol['trials_per_cell']
+    expected={(trial,backend,scenario) for trial in range(1,trials+1)
+              for backend in protocol['backends'] for scenario in profiles}
+    order=[tuple(cell) for cell in experiment['order']]
+    if (args['trials']!=trials or args['duration']!=protocol['duration_s']
+            or args['seed']!=protocol['reference_seed'] or len(order)!=len(expected) or set(order)!=expected):
+        return False
+    observation=protocol['observation']
+    for run in runs:
+        if not run['summary']:continue
+        summary=run['summary'];cfg=summary['config'];profile=profiles[run['scenario']]
+        expected_config={'duration_s':protocol['duration_s'],'rate':profile['writes_per_s'],
+            'query_rate':profile['queries_per_s'],'arrival':profile['arrival'],
+            'deadline_s':observation['deadline_s'],'poll_ms':observation['minimum_gap_ms'],
+            'stable_ms':observation['confirmation_window_ms'],'min_confirmations':observation['minimum_confirmations'],
+            'write_workers':4,'probe_workers':32,'query_workers':4,'max_active':1024}
+        if any(cfg.get(key)!=value for key,value in expected_config.items()):return False
+        if profile['arrival']=='burst' and cfg['burst_multiplier']!=profile['burst_multiplier']:return False
+        actual=summary['metadata']['profile']
+        if actual['dataset']!=profile['dataset'] or actual['base_count']!=profile['base_count']:return False
+    return True
+
+
 def export(root,dest):
     dest.mkdir(parents=True,exist_ok=True);evidence=dest/'evidence';evidence.mkdir(exist_ok=True)
     # Replace only files owned by this exporter; don't carry pilot traces into a release.
@@ -76,8 +105,7 @@ def export(root,dest):
                 'failed_gates':sorted({g for r in complete for g,ok in r['gates'].items() if not ok}),
                 'run_ids':[r['run'] for r in entries]})
     calibration=json.loads((root/'calibration.json').read_text())
-    reference=(experiment['arguments']['trials']==5 and experiment['arguments']['duration']==30
-               and len(experiment['order'])==60)
+    reference=reference_configuration(experiment,runs,json.loads(Path('benchmarks/protocol-v2.json').read_text()))
     continuations=[]
     for directory in sorted((root/'continuations').glob('*')):
         if (directory/'continuation.json').exists():

@@ -99,3 +99,9 @@ starts the pinned images on an Ubuntu runner, exercises all mutation APIs, and
 runs the deep verifier. Its artifacts are labelled as a one-second pilot.
 Shared-runner timings are not reference performance measurements and are never
 merged into the website's comparison data.
+
+The [initial Linux run](https://github.com/aadithya2112/freshness-benchmark/actions/runs/40811218393)
+passed data preparation, all three real backends, and the deep evidence audit.
+Its evidence is retained separately in the release so CI artifact expiry does
+not remove this compatibility record. This is a functional port check, not an
+independent performance replication.

@@ -33,6 +33,11 @@ def package(root,out,site):
     with tarfile.open(out/'diagnostic-pilots-v2.tar.gz','w:gz') as archive:
         for directory in sorted(Path('artifacts').glob('v2-*')):
             if directory.is_dir():archive.add(directory,arcname=directory.name)
+    linux=Path('artifacts/linux-smoke-v2')
+    if linux.exists():
+        verify(linux,check_data=False)
+        with tarfile.open(out/'linux-compatibility-v2.tar.gz','w:gz') as archive:
+            archive.add(linux,arcname='linux-smoke-v2')
     prior=Path('artifacts/publication-v1-release.tar.gz')
     if prior.exists():shutil.copy2(prior,out/prior.name)
     (out/'README.md').write_text('''# Freshness Benchmark 0.5.0 / protocol 2
@@ -47,6 +52,8 @@ UPSTREAM-LICENSE.md files. Code is MIT; data retains its original terms.
 
 Diagnostic pilots and the historical insert-only v1 pilot are separate. Do not
 combine their observations with the final mixed-mutation reference matrix.
+The Linux compatibility archive is a one-second functional smoke run on a
+GitHub-hosted Ubuntu runner, not a second performance reference.
 
 This is a single-host reference, not an independently replicated universal
 ranking. All failed validity checks and interrupted attempts remain disclosed.

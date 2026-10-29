@@ -72,6 +72,17 @@ def audit_run(directory,summary=None,evaluate=None):
     directory=Path(directory);s=summary or read(directory/'summary.json');cfg=s['config']
     events=rows(directory/'events.jsonl');queries=rows(directory/'queries.jsonl')
     probes=rows(directory/'probes.jsonl');by_channel=defaultdict(list)
+    # Reconstruct offered work independently. Checking only the summary count
+    # would allow an omitted tail of events to disappear from every denominator.
+    segments=[(0,cfg['duration_s'],cfg['rate'])] if cfg['arrival']=='steady' else [
+        segment for period in range(math.ceil(cfg['duration_s']/10))
+        for segment in ((period*10,min(period*10+1,cfg['duration_s']),cfg['rate']*cfg['burst_multiplier']),
+                        (period*10+1,min(period*10+10,cfg['duration_s']),cfg['rate']))]
+    arrivals=[begin+i/rate for begin,end,rate in segments if end>begin
+              for i in range(math.ceil((end-begin)*rate-1e-10))]
+    require(len(events)==len(arrivals),'Mutation schedule count differs')
+    for event,scheduled in zip(events,arrivals):
+        close(event['scheduled_s'],scheduled,'Mutation schedule')
     expected_queries=math.ceil(cfg['duration_s']*cfg['query_rate']-1e-10)
     require(len(queries)==expected_queries,'Background query schedule count differs')
     for index,q in enumerate(sorted(queries,key=lambda q:q['scheduled_s'])):
@@ -176,6 +187,7 @@ def verify(root,check_data=False,allow_partial=False):
         s=read(directory/'summary.json');m=s['metadata'];evaluator=None
         require(m['backend']==entry['backend'] and m['collection']==entry['run'],'Run identity mismatch')
         require(entry['eligible']==s['eligible'] and entry['gates']==s['gates'],'Progress summary mismatch')
+        close(s['config']['duration_s'],experiment['arguments']['duration'],'Trial duration configuration')
         require(m['dataset']==experiment['datasets'][m['profile']['dataset']],'Dataset changed between runs')
         if check_data:
             from freshness_benchmark.quality import RetrievalData
