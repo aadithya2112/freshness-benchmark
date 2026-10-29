@@ -1,3 +1,5 @@
+> Historical development notes. For the current public comparison protocol, see [methodology.md](methodology.md) and [docs/publication.md](docs/publication.md).
+
 # Implementation Details
 
 ## Architecture

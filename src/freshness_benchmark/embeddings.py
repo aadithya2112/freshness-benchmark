@@ -150,3 +150,40 @@ def build_embedding_source(
     if embedding_mode == "precomputed":
         return PrecomputedEmbeddingSource(dimensions=dimensions)
     raise ValueError(f"Unsupported embedding mode: {embedding_mode}")
+
+
+class CachedEmbeddingSource:
+    """Load and validate vectors before any timed operations."""
+    def __init__(self, path: str) -> None:
+        from pathlib import Path
+        raw = Path(path).read_bytes()
+        body = json.loads(raw)
+        self._metadata = body["metadata"]
+        self._vectors = body["vectors"]
+        self._texts = body["text_sha256"]
+        self._dimensions = int(self._metadata["dimensions"])
+        if self._dimensions <= 0 or not self._vectors:
+            raise ValueError("Empty embedding cache")
+        for vector in self._vectors.values():
+            if (len(vector) != self._dimensions or
+                    not all(isinstance(x, (int, float)) and math.isfinite(x) for x in vector) or
+                    sum(x*x for x in vector) == 0):
+                raise ValueError("Invalid cached vector")
+        self._metadata = {**self._metadata, "type": "cached_semantic",
+                          "cache_sha256": hashlib.sha256(raw).hexdigest()}
+
+    def get_vector(self, doc_id: str, text: str) -> list[float]:
+        if hashlib.sha256(text.encode()).hexdigest() != self._texts.get(doc_id):
+            raise ValueError(f"Embedding cache text mismatch: {doc_id}")
+        return self._vectors[doc_id]
+
+    @property
+    def dimensions(self) -> int:
+        return self._dimensions
+
+    @property
+    def metadata(self) -> dict[str, Any]:
+        return self._metadata
+
+    def close(self) -> None:
+        pass

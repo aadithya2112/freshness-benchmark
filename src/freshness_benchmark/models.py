@@ -51,7 +51,15 @@ class BenchmarkConfig:
     out_dir: str
     preload_docs: int = 0
 
+    embedding_cache: str | None = None
+    search_scope: str = "run"
+    inject_anchor: bool = True
+
     def validate(self) -> None:
+        if self.embedding_cache and self.embedding_mode != "precomputed":
+            raise ValueError("Cached embeddings require precomputed mode")
+        if self.search_scope not in {"run", "collection"}:
+            raise ValueError("search_scope must be run or collection")
         if self.docs <= 0:
             raise ValueError("--docs must be > 0")
         if self.preload_docs < 0:
@@ -194,11 +202,29 @@ class DocLifecycle:
     search_attempts: int = 0
     vector_dimensions: int | None = None
 
+    monotonic_submitted: float | None = None
+    monotonic_embedding_done: float | None = None
+    monotonic_write_acked: float | None = None
+    monotonic_searchable: float | None = None
+    scheduled_delay_ms: float = 0.0
+    search_queue_ms: float | None = None
+    freshness_lower_ms: float = 0.0
+    probes: list[dict[str, Any]] = field(default_factory=list)
+
     def finalize_metrics(self) -> None:
         self.embedding_ms = delta_ms(self.t_submitted, self.t_embedding_done)
         self.write_ack_ms = delta_ms(self.t_embedding_done, self.t_write_acked)
         self.visibility_ms = delta_ms(self.t_write_acked, self.t_searchable)
         self.freshness_ms = delta_ms(self.t_submitted, self.t_searchable)
+
+        for metric, start, end in (
+            ("embedding_ms", self.monotonic_submitted, self.monotonic_embedding_done),
+            ("write_ack_ms", self.monotonic_embedding_done, self.monotonic_write_acked),
+            ("visibility_ms", self.monotonic_write_acked, self.monotonic_searchable),
+            ("freshness_ms", self.monotonic_submitted, self.monotonic_searchable),
+        ):
+            if start is not None and end is not None:
+                setattr(self, metric, (end - start) * 1000)
 
     def mark_timeout(self, reason: str) -> None:
         self.status = "timeout"
@@ -253,6 +279,7 @@ class RunSummary:
     preload_written: int = 0
     preload_wall_clock_s: float | None = None
     preload_run_id: str | None = None
+    diagnostics: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass

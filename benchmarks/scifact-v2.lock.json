@@ -1,0 +1,27 @@
+{
+  "dataset": "scifact",
+  "source": "https://public.ukp.informatik.tu-darmstadt.de/thakur/BEIR/datasets/scifact.zip",
+  "source_sha256": "536e14446a0ba56ed1398ab1055f39fe852686ecad24a6306c80c490fa8e0165",
+  "source_md5": "5f7d1de60b170fc8027bb7898e2efca1",
+  "records": 5183,
+  "queries": 100,
+  "relevant_documents_retained": 107,
+  "seed": 20261028,
+  "license": "Corpus: ODC-By-1.0; claims/evidence: CC-BY-4.0",
+  "license_source": "https://raw.githubusercontent.com/allenai/scifact/master/LICENSE.md",
+  "attribution": "BEIR and original dataset authors; Wikipedia contributors for NQ, SciFact authors and cited article authors for SciFact.",
+  "transformation": "200-word title+text prefix; seeded reservoir of documents with relevant documents for selected test queries retained at front. Simulated mutations; no historical replay.",
+  "model": "sentence-transformers/all-MiniLM-L6-v2",
+  "model_revision": "1110a243fdf4706b3f48f1d95db1a4f5529b4d41",
+  "dimensions": 384,
+  "normalized": true,
+  "max_tokens": 256,
+  "device": "mps",
+  "files": {
+    "corpus.jsonl": "189d58f273468352c9f73c6333c5120dcfb7ba1695984f073f0ebb6c100ed0cd",
+    "queries.json": "c8b333c73353a8c4aeb7d6b63067c9a241aa5d39a0314f0c315ec63019ee9558",
+    "vectors.npy": "b6b21404977151ce565e7d6d57d9931a4679e1ecf4aa44fcd9b29eb54955d09e",
+    "query_vectors.npy": "02324eb7c3b3d2e2f0ec3208453e2ec0efd5d61d9fc845b1f8b7950e913f2730",
+    "UPSTREAM-LICENSE.md": "56ee69bc639cbab8f0b2e4b67091ec5e9390aa99a1d65f0a35e4274686c9a806"
+  }
+}

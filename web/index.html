@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Freshness Benchmark</title>
+<meta name="description" content="Reproducible measurements of vector database insert, replacement, and deletion visibility under concurrent reads and writes.">
+<meta name="theme-color" content="#ffffff">
+<link rel="icon" href="icon.svg" type="image/svg+xml"><link rel="stylesheet" href="style.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to results</a>
+<header class="masthead">
+<a class="wordmark" href="#results">Freshness Benchmark</a>
+<nav aria-label="Main navigation"><a href="#results" data-page="results">Results</a><a href="#methodology" data-page="methodology">Methodology</a><a href="#datasets" data-page="datasets">Datasets</a><a href="#reproduce" data-page="reproduce">Reproduce</a><a href="https://github.com/aadithya2112/freshness-benchmark">GitHub ↗</a></nav>
+</header>
+<main id="main" tabindex="-1">
+<section id="page-results" class="page">
+<div class="intro"><h1>Vector database freshness</h1><p class="dek">Compare how quickly inserts, replacements, and deletions become visible under concurrent queries.</p><div class="experiment-meta"><span>Protocol 2</span><span id="run-status" aria-live="polite">Loading results…</span><a href="#methodology">How to interpret these results</a></div></div>
+<div class="workspace-heading"><h2>Results</h2><div class="result-actions"><button class="plain-button" id="share">Copy link</button><a class="small-link" href="data/results.csv" download>Download CSV</a></div></div>
+<div class="controls"><label>Workload<select id="scenario"><option value="nq-100k">Natural Questions · 100k · steady</option><option value="nq-100k-burst">Natural Questions · 100k · burst</option><option value="nq-10k">Natural Questions · 10k · steady</option><option value="scifact-small">SciFact · 4k · steady</option></select></label><fieldset><legend>Operation</legend><div class="segmented" id="operations"><button type="button" data-op="insert" aria-pressed="true">Insert</button><button type="button" data-op="update" aria-pressed="false">Replace</button><button type="button" data-op="delete" aria-pressed="false">Delete</button></div></fieldset><label>Chart metric<select id="metric"><option value="first">First observed · p95</option><option value="confirmed">Confirmed · p95</option><option value="query">Query latency · p95</option></select></label></div>
+<div class="results-table-wrap" tabindex="0" role="region" aria-label="Backend results; scroll horizontally on small screens"><table id="results-table"><caption class="sr-only">Backend comparison for the selected workload and operation</caption><thead><tr><th scope="col">Engine</th><th scope="col">Confirmed</th><th scope="col">First p95</th><th scope="col">Confirmed p95</th><th scope="col">ANN recall@10</th><th scope="col">Validity</th><th scope="col"><span class="sr-only">Details</span></th></tr></thead><tbody></tbody></table></div>
+<div class="under-table"><p>Latencies describe successful events. Confirmation rates include all offered events.</p><p id="hardware-line"></p></div>
+<section class="chart-panel" aria-labelledby="chart-title"><div class="chart-heading"><div><h3 id="chart-title">First correct observation</h3><p id="chart-caption">Median trial p95 with a 95% bootstrap interval.</p></div><span class="unit-label">Milliseconds · log scale</span></div><div id="chart" role="group" aria-label="Latency comparison loading"></div><div class="chart-footer"><span>Includes client, transport, and database time</span><span id="scope-line"></span></div></section>
+<p class="metric-note" id="metric-note"></p><p class="metric-note" id="continuation-note" hidden></p>
+<section class="evidence-section"><div><h2>Individual trials</h2><p>Inspect configuration, validity checks, and raw observations. Failed checks stay in the results.</p></div><div class="run-list" id="run-list"></div></section>
+</section>
+      <section id="page-methodology" class="page document" hidden>
+        <p class="eyebrow">PROTOCOL 2 / MIXED MUTATIONS</p>
+        <h1>Methodology</h1>
+        <p class="lead">
+          Visibility is observed through the API. It is an upper bound that
+          includes client queues, transport, and query execution—not a timestamp
+          inside the index.
+        </p>
+        <div class="protocol-flow">
+          <div>
+            <b>01</b>
+            <h3>Submit</h3>
+            <p>
+              Readers begin at submission, independently of the writer’s
+              acknowledgement.
+            </p>
+          </div>
+          <div>
+            <b>02</b>
+            <h3>Observe</h3>
+            <p>
+              Check both direct-ID state and the expected version through vector
+              search.
+            </p>
+          </div>
+          <div>
+            <b>03</b>
+            <h3>Confirm</h3>
+            <p>
+              Require at least three correct observations spanning 50ms on each
+              channel.
+            </p>
+          </div>
+        </div>
+        <div class="document-grid">
+          <aside>WHAT COUNTS AS FRESH</aside>
+          <div>
+            <h2>One rule for each kind of change.</h2>
+            <dl class="definitions">
+              <dt>Insert</dt>
+              <dd>
+                The new document is present in a direct read and appears with
+                version 1 in unfiltered top-10 self-vector search.
+              </dd>
+              <dt>Replacement</dt>
+              <dd>
+                The same ID returns version 1 after replacing both its content
+                and vector. Before the write, the target must be absent from
+                search with its new vector. Merely finding the old ID does not
+                count.
+              </dd>
+              <dt>Deletion</dt>
+              <dd>
+                A previously retrievable document becomes absent in both
+                direct-ID reads and repeated searches with its old vector. A
+                negative ANN result alone never establishes deletion.
+              </dd>
+            </dl>
+            <p>
+              Confirmation describes the observed window. It does not prove
+              permanent absence or monotonic visibility. Regressions reset the
+              confirmation window and are counted.
+            </p>
+          </div>
+        </div>
+        <div class="document-grid">
+          <aside>RETRIEVAL QUALITY</aside>
+          <div>
+            <h2>Speed needs a quality check.</h2>
+            <p>
+              Background traffic uses 100 real dataset questions. Queries filter
+              to an immutable cohort in the same collection, while mutations
+              target disjoint IDs. This gives a fixed, exact reference during
+              concurrent writes.
+            </p>
+            <p>
+              <strong>ANN recall@10</strong> measures agreement with exhaustive
+              cosine search. Equal-score neighbors at the tenth boundary receive
+              credit within a 10⁻⁶ tolerance. The eligibility target is 95%
+              recall before and during the workload.
+            </p>
+            <p>
+              <strong>nDCG@10</strong> uses human relevance judgments and is
+              reported separately. It reflects the fixed embedding model and
+              transformed corpus as well as retrieval. These subset scores are
+              not full BEIR leaderboard scores.
+            </p>
+            <p>
+              This quality workload is filtered. Mutation probes search the
+              whole collection. The two workloads answer different questions and
+              remain labelled throughout the results.
+            </p>
+          </div>
+        </div>
+        <div class="document-grid">
+          <aside>VALIDITY GATES</aside>
+          <div>
+            <h2>Keep failures in view.</h2>
+            <div id="gate-definitions">
+              <ul>
+                <li>
+                  p95 arrival delay ≤ the shortest requested interarrival
+                  interval.
+                </li>
+                <li>
+                  p95 probe dispatch delay ≤ 10ms. Positive responses are
+                  sampled every 25ms; negative responses use a minimum 10ms gap.
+                </li>
+                <li>
+                  p95 background-query dispatch delay ≤ its requested
+                  interarrival interval.
+                </li>
+                <li>ANN recall ≥95% before and during mutations.</li>
+                <li>
+                  All mutation preconditions pass; no client-capacity drops or
+                  results from outside the requested static cohort.
+                </li>
+                <li>
+                  HNSW configuration, index readiness, and PostgreSQL query plan
+                  are verified.
+                </li>
+              </ul>
+            </div>
+            <p>
+              A cell is eligible only when all planned trials complete and pass
+              every gate. Failed cells remain visible. Database errors and
+              timeouts remain in the reliability denominator even when the
+              harness gates pass.
+            </p>
+          </div>
+        </div>
+        <div class="document-grid">
+          <aside>CALIBRATION</aside>
+          <div>
+            <h2>Test the clock against known delays.</h2>
+            <p>
+              Controlled in-memory backends inject 0, 25, and 100ms of
+              visibility delay. A separate 100ms acknowledgement delay checks
+              that readers can observe a change before the writer receives its
+              response. These controls measure harness behavior; they do not
+              calibrate network or server overhead.
+            </p>
+            <div id="calibration-table"></div>
+          </div>
+        </div>
+        <div class="document-grid">
+          <aside>EXPERIMENT DESIGN</aside>
+          <div>
+            <h2>Repeated runs, declared conditions.</h2>
+            <p>
+              Each trial gets a new collection and a deterministic, disjoint
+              mutation plan. Inserts, replacements, and deletes rotate in equal
+              proportions. These are simulated mutations of static corpora, not
+              replayed historical events.
+            </p>
+            <p>
+              After loading and index-readiness checks, every mutation target is
+              checked. A two-second query warmup precedes a idle baseline
+              covering all 100 queries (ten seconds at the reference rate). The
+              measured mixed workload lasts 30 seconds. The burst profile uses
+              four times the nominal rate during the first second of each
+              ten-second period.
+            </p>
+            <p>
+              Five randomized trials per cell run on one local Apple M4 host
+              through Docker Desktop. Each backend receives two virtual CPUs and
+              3 GiB. Collections are removed after each trial. Host activity,
+              shared physical resources, caching, and backend-specific
+              acknowledgement semantics remain limitations. Cgroup CPU,
+              throttling, and memory counters are included in each trial record.
+            </p>
+            <p>
+              We report the median of trial p95s and a seeded percentile
+              bootstrap interval using 5,000 trial-level resamples. Five trials
+              offer limited uncertainty resolution. The intervals do not
+              establish statistical significance or a universal winner.
+            </p>
+            <p>
+              Qdrant uses wait=true; Weaviate uses synchronous indexing and REST
+              writes with GraphQL queries; PostgreSQL uses autocommit, READ
+              COMMITTED and independent connections. HNSW parameters and actual
+              versions are retained in each run. Equal numerical parameters do
+              not imply equivalent algorithms or durability.
+            </p>
+          </div>
+        </div>
+        <div class="document-grid">
+          <aside>RELATED WORK</aside>
+          <div>
+            <h2>Part of a larger measurement effort.</h2>
+            <p>
+              <a href="https://github.com/erikbern/ann-benchmarks"
+                >ANN-Benchmarks ↗</a
+              >
+              establishes recall/performance comparisons.
+              <a href="https://github.com/zilliztech/VectorDBBench"
+                >VectorDBBench ↗</a
+              >
+              includes database workloads and ingestion/readiness measurements.
+              <a href="https://arxiv.org/abs/2105.09613">FreshDiskANN ↗</a>
+              studies concurrent updates, deletion, search, and recall.
+              <a href="https://github.com/beir-cellar/beir">BEIR ↗</a> supplies
+              real retrieval tasks and judgments.
+            </p>
+            <p>
+              This project brings version-aware observations, independent
+              readers, quality gates, and inspectable evidence into one
+              comparison workflow. It makes no claim to be the first freshness
+              benchmark.
+            </p>
+          </div>
+        </div>
+      </section>
+      <section id="page-datasets" class="page document" hidden>
+        <p class="eyebrow">DATA / ATTRIBUTION / TRANSFORMATIONS</p>
+        <h1>Datasets</h1>
+        <p class="lead">
+          Pinned sources and shared vectors keep backend comparisons consistent.
+          Every trial uses the same data and cache for its selected workload.
+        </p>
+        <div id="dataset-list"></div>
+        <div class="document-grid">
+          <aside>EMBEDDINGS</aside>
+          <div>
+            <h2>One model, outside the clock.</h2>
+            <p>
+              <a
+                href="https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2"
+                >all-MiniLM-L6-v2 ↗</a
+              >
+              produces normalized 384-dimensional vectors, cached as float32
+              arrays. Model revision
+              <code>1110a243fdf4706b3f48f1d95db1a4f5529b4d41</code> is pinned.
+              Input is limited to 200 words, then the model’s 256-token limit.
+              Model license: Apache-2.0.
+            </p>
+            <p>
+              Regenerated floating-point vectors can vary across devices. The
+              manifest identifies the exact cache used. Data licenses remain
+              separate from the benchmark’s MIT code license.
+            </p>
+            <p>
+              Dataset attributions and retained licenses are also included in
+              the downloadable source under <code>docs/DATA-NOTICE.md</code>.
+            </p>
+            <p>
+              The earlier Python documentation pilot is retained in the source
+              repository as historical evidence. Its small insertion-only
+              measurements are not mixed with protocol 2 results.
+            </p>
+          </div>
+        </div>
+      </section>
+      <section id="page-reproduce" class="page document" hidden>
+        <p class="eyebrow">REPRODUCE / INSPECT / CONTRIBUTE</p>
+        <h1>Reproduce the benchmark</h1>
+        <p class="lead">
+          Start with the source, pin the data, and run the same protocol. You
+          can inspect every raw observation before spending time on a full
+          matrix.
+        </p>
+        <div class="download-links">
+          <a href="data/benchmark-evidence.tar.gz" download
+            ><span>Complete experiment evidence</span
+            ><small
+              >Raw observations, calibration, provenance, and verifier
+              input</small
+            ><b>TAR.GZ ↓</b></a
+          ><a href="data/benchmark-source.zip" download
+            ><span>Benchmark source</span
+            ><small>Code, protocol, tests, and preparation scripts</small
+            ><b>ZIP ↓</b></a
+          ><a href="data/experiment-source.tar.gz" download
+            ><span>Exact experiment source</span
+            ><small>The source snapshot captured before the trials</small
+            ><b>TAR.GZ ↓</b></a
+          ><a href="data/results.json" download
+            ><span>Results and provenance</span
+            ><small>Aggregates, per-run metadata, and validity gates</small
+            ><b>JSON ↓</b></a
+          ><a href="data/checksums.json" download
+            ><span>Evidence checksums</span
+            ><small>SHA-256 inventory for all downloadable evidence</small
+            ><b>JSON ↓</b></a
+          >
+        </div>
+        <div class="document-grid">
+          <aside>RUN THE MATRIX</aside>
+          <div>
+            <h2>Same workload. Your hardware.</h2>
+            <p>
+              Python 3.12, uv and Docker are the reference environment. Data
+              preparation downloads the BEIR archives and model weights. The
+              complete matrix is substantial; start with the smoke suite.
+            </p>
+            <div class="code-block">
+              <button class="copy-code" data-target="reproduce-code">
+                Copy
+              </button>
+              <pre id="reproduce-code">
+uv venv --python 3.12 .venv
+uv pip install --python .venv/bin/python -e '.[publication]'
+docker compose -p freshness-v2 -f docker-compose.v2.yml up -d
+.venv/bin/python scripts/prepare_v2_data.py scifact --device cpu
+.venv/bin/python scripts/prepare_v2_data.py nq --device cpu
+.venv/bin/python -m unittest discover -s tests
+.venv/bin/python scripts/run_streaming.py \
+  --out artifacts/my-v2 --trials 5 --duration 30
+.venv/bin/python scripts/build_website.py artifacts/my-v2
+.venv/bin/python scripts/verify_v2.py artifacts/my-v2</pre
+              >
+            </div>
+            <p>
+              CPU regeneration produces its own cache hash. Report it; do not
+              claim byte-identical reproduction unless the cache hashes match.
+              The reference used Apple MPS for embedding preparation only.
+            </p>
+            <details>
+              <summary>Quick smoke configuration</summary>
+              <pre>
+.venv/bin/python scripts/run_streaming.py \
+  --out artifacts/my-smoke --scenarios scifact-small \
+  --trials 1 --duration 1</pre
+              >
+              <p>
+                A smoke run checks functionality. It is not a publication
+                result.
+              </p>
+            </details>
+          </div>
+        </div>
+        <div class="document-grid">
+          <aside>SUBMIT RESULTS</aside>
+          <div>
+            <h2>Bring the full experiment.</h2>
+            <p>
+              Contributions need raw event and probe traces, a complete trial
+              matrix, dataset/cache hashes, exact software versions, hardware
+              limits, calibration results, and every failed validity check.
+              Label tuning changes and resource differences.
+            </p>
+            <p>
+              Community submissions remain unverified until reproduced
+              independently. We do not silently merge results across different
+              hardware or protocols.
+            </p>
+            <a
+              class="solid-button"
+              id="submission-link"
+              href="https://github.com/aadithya2112/freshness-benchmark/issues/new?title=Benchmark%20result%20submission&body=Protocol%3A%0AHardware%3A%0ADataset%20and%20cache%20hashes%3A%0ASource%20revision%3A%0AEvidence%20download%20URL%3A%0AVerifier%20output%3A%0ATuning%20changes%3A%0A"
+              >Prepare a GitHub submission ↗</a
+            >
+          </div>
+        </div>
+      </section>
+</main>
+<footer><span>Freshness Benchmark · Protocol 2</span><a href="#methodology">Methodology</a><a href="#reproduce">Data &amp; source</a><a href="https://github.com/aadithya2112/freshness-benchmark">GitHub ↗</a></footer>
+<dialog id="details-dialog"><div class="dialog-top"><span>Experiment details</span><button id="close-dialog" aria-label="Close experiment details">×</button></div><div id="details-content"></div></dialog>
+<div id="toast" role="status" aria-live="polite"></div>
+<script src="app.js" defer></script>
+</body></html>

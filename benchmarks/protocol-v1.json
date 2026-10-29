@@ -1,0 +1,26 @@
+{
+  "protocol": "insert-self-vector-v1",
+  "schema_version": "1.0",
+  "dataset_lock": "benchmarks/python-docs.lock.json",
+  "trials": 5,
+  "preload_documents": 2000,
+  "measured_documents_per_trial": 1000,
+  "arrival_rates_docs_per_second": [50, 200],
+  "backends": ["qdrant", "weaviate", "pgvector"],
+  "seed": 20261028,
+  "search_scope": "collection",
+  "top_k": 10,
+  "poll_gap_ms": 10,
+  "submission_deadline_seconds": 10,
+  "embedding_concurrency": 4,
+  "write_concurrency": 4,
+  "search_concurrency": 8,
+  "container_cpus": 2,
+  "container_memory_gib": 2,
+  "headline_metrics": ["success_rate", "median_trial_p50_ms", "median_trial_p95_ms", "fraction_within_100ms"],
+  "client_validity_gates": {
+    "complete_trial_matrix": true,
+    "p95_schedule_delay_max_interarrival_intervals": 1,
+    "p95_first_probe_queue_max_ms": 10
+  }
+}

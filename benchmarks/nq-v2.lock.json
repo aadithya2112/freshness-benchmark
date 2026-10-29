@@ -1,0 +1,27 @@
+{
+  "dataset": "nq",
+  "source": "https://public.ukp.informatik.tu-darmstadt.de/thakur/BEIR/datasets/nq.zip",
+  "source_sha256": "2553bf7bfbab47b1436ca00a34bce57320e18e611fd00999a2a3a1b4714be752",
+  "source_md5": "d4d3d2e48787a744b6f6e691ff534307",
+  "records": 124000,
+  "queries": 100,
+  "relevant_documents_retained": 120,
+  "seed": 20261028,
+  "license": "CC-BY-SA-3.0",
+  "license_source": "https://raw.githubusercontent.com/google-research-datasets/natural-questions/master/nq_open/README.md",
+  "attribution": "BEIR and original dataset authors; Wikipedia contributors for NQ, SciFact authors and cited article authors for SciFact.",
+  "transformation": "200-word title+text prefix; seeded reservoir of documents with relevant documents for selected test queries retained at front. Simulated mutations; no historical replay.",
+  "model": "sentence-transformers/all-MiniLM-L6-v2",
+  "model_revision": "1110a243fdf4706b3f48f1d95db1a4f5529b4d41",
+  "dimensions": 384,
+  "normalized": true,
+  "max_tokens": 256,
+  "device": "mps",
+  "files": {
+    "corpus.jsonl": "9dc487d785e6ee493eccaf764daa3bf8720a8f4fc8c406246065e1ad33a91f5d",
+    "queries.json": "5603f52876ada5d36118b65dea490f1d43900bc159e1804e637796eb9115e999",
+    "vectors.npy": "cb7421eb6ca5964231403f0a922843088f6fd0e01cbf67f2a1076cc7101005db",
+    "query_vectors.npy": "5e666f8d966d8db6b0fd93d4963234d2dffa0ee3910b8fad069a8ee201e8b5d4",
+    "UPSTREAM-LICENSE.md": "8b675521da3fa142ac6bda38c9bcfcc8cff0e2d6128be53a062ed55fb53f7b87"
+  }
+}

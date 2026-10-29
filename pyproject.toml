@@ -4,15 +4,20 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "freshness-benchmark"
-version = "0.3.0"
+version = "0.5.0"
 description = "Benchmark vector-search freshness across embedding modes and vector backends."
 readme = "README.md"
+license = {file = "LICENSE"}
 requires-python = ">=3.10"
 authors = [{ name = "Freshness Benchmark" }]
-dependencies = ["psycopg[binary]>=3.2.0"]
+dependencies = ["psycopg[binary]>=3.2.0", "httpx==0.28.1", "numpy>=2.0", "threadpoolctl>=3.5"]
+
+[project.urls]
+Repository = "https://github.com/aadithya2112/freshness-benchmark"
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0.0"]
+publication = ["sentence-transformers==6.2.0", "matplotlib>=3.9"]
 
 [tool.setuptools]
 package-dir = {"" = "src"}

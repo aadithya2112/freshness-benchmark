@@ -1,0 +1,20 @@
+{
+  "source_url": "https://www.python.org/ftp/python/3.13.0/Python-3.13.0.tgz",
+  "source_sha256": "12445c7b3db3126c41190bfdc1c8239c39c719404e844babbd015a1bc3fafcd4",
+  "corpus_sha256": "9f8427f9ea46b49c9ed4e3d1bd6c95a72c3f645518c4d6af394932a4425f705b",
+  "records": 9383,
+  "seed": 20261028,
+  "transformation": "library/tutorial/howto RST; whitespace split into 100-word nonoverlapping chunks; discard <40 words and exact duplicates; seeded shuffle",
+  "license": "PSF-2.0; see PYTHON-LICENSE.txt",
+  "embedding": {
+    "model": "sentence-transformers/all-MiniLM-L6-v2",
+    "revision": "1110a243fdf4706b3f48f1d95db1a4f5529b4d41",
+    "dimensions": 384,
+    "normalized": true,
+    "max_seq_length": 256,
+    "sentence_transformers_version": "6.2.0",
+    "torch_version": "2.15.0",
+    "corpus_sha256": "9f8427f9ea46b49c9ed4e3d1bd6c95a72c3f645518c4d6af394932a4425f705b"
+  },
+  "cache_sha256": "354d17b3e58172aef5e9e1523f99341bc69e6dc574d7e0b577e86d08cb41992b"
+}

@@ -36,17 +36,20 @@ def build_backend(config: BenchmarkConfig) -> VectorBackend:
             qdrant_url=config.qdrant_url,
             collection=config.collection,
             run_id=config.run_id,
+            search_scope=config.search_scope,
         )
     if config.backend == "weaviate":
         return WeaviateBackend(
             weaviate_url=config.weaviate_url,
             collection=config.collection,
             run_id=config.run_id,
+            search_scope=config.search_scope,
         )
     if config.backend == "pgvector":
         return PgvectorBackend(
             dsn=config.pgvector_dsn or "",
             collection=config.collection,
             run_id=config.run_id,
+            search_scope=config.search_scope,
         )
     raise ValueError(f"Unsupported backend: {config.backend}")

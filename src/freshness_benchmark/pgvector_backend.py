@@ -21,24 +21,32 @@ def _vector_literal(vector: list[float]) -> str:
 class PgvectorBackend:
     name = "pgvector"
 
-    def __init__(self, dsn: str, collection: str, run_id: str) -> None:
+    def __init__(self, dsn: str, collection: str, run_id: str, search_scope: str = "run") -> None:
         self._dsn = dsn
         self.collection = collection
         self.run_id = run_id
+        self.search_scope = search_scope
         self.table_name = _safe_identifier(collection)
-        self._conn: Any | None = None
+        import threading
+        self._local = threading.local()
+        self._connections: list[Any] = []
+        self._connections_lock = threading.Lock()
 
     def _connection(self) -> Any:
-        if self._conn is not None:
-            return self._conn
+        connection = getattr(self._local, "connection", None)
+        if connection is not None:
+            return connection
         try:
             import psycopg
         except ImportError as exc:  # pragma: no cover - depends on optional runtime dep
             raise RuntimeError(
                 "pgvector backend requires the 'psycopg' package. Install project dependencies first."
             ) from exc
-        self._conn = psycopg.connect(self._dsn, autocommit=True)
-        return self._conn
+        connection = psycopg.connect(self._dsn, autocommit=True)
+        self._local.connection = connection
+        with self._connections_lock:
+            self._connections.append(connection)
+        return connection
 
     def prepare_run(self, vector_size: int) -> None:
         conn = self._connection()
@@ -68,9 +76,9 @@ class PgvectorBackend:
                     """
                 )
             except Exception:
-                # HNSW availability depends on the pgvector extension version. The
-                # benchmark still works without the index for local reproducibility.
+                # Fail closed: a missing index changes the comparison configuration.
                 conn.rollback()
+                raise RuntimeError("HNSW index creation failed; refusing silent exact-search fallback")
         self.reset_run_data()
 
     def reset_run_data(self) -> None:
@@ -107,24 +115,32 @@ class PgvectorBackend:
 
     def search(self, vector: list[float], limit: int) -> list[dict[str, Any]]:
         conn = self._connection()
+        where = "WHERE run_id = %s" if self.search_scope == "run" else ""
+        params = ((self.run_id,) if self.search_scope == "run" else ()) + (_vector_literal(vector), limit)
         with conn.cursor() as cur:
             cur.execute(
                 f"""
                 SELECT payload
                 FROM {self.table_name}
-                WHERE run_id = %s
+                {where}
                 ORDER BY embedding <=> %s::vector
                 LIMIT %s
                 """,
-                (self.run_id, _vector_literal(vector), limit),
+                params,
             )
             rows = cur.fetchall()
         return [{"payload": row[0]} for row in rows]
 
     def backend_info(self) -> dict[str, Any]:
         conn = self._connection()
-        info: dict[str, Any] = {"name": self.name}
+        info: dict[str, Any] = {"name": self.name, "search_scope": self.search_scope}
         with conn.cursor() as cur:
+            cur.execute(f"SELECT count(*) FROM {self.table_name}")
+            info["row_count"] = cur.fetchone()[0]
+            cur.execute(f"SELECT indexdef FROM pg_indexes WHERE tablename = %s", (self.table_name,))
+            info["indexes"] = [row[0] for row in cur.fetchall()]
+            cur.execute("SHOW hnsw.ef_search")
+            info["hnsw_ef_search"] = cur.fetchone()[0]
             cur.execute("SELECT version()")
             info["postgres_version"] = cur.fetchone()[0]
             try:
@@ -139,6 +155,6 @@ class PgvectorBackend:
         return info
 
     def close(self) -> None:
-        if self._conn is not None:
-            self._conn.close()
-            self._conn = None
+        for connection in self._connections:
+            connection.close()
+        self._connections.clear()

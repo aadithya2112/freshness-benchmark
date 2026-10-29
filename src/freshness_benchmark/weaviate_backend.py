@@ -35,10 +35,11 @@ def _graphql_value(value: Any) -> str:
 class WeaviateBackend:
     name = "weaviate"
 
-    def __init__(self, weaviate_url: str, collection: str, run_id: str) -> None:
+    def __init__(self, weaviate_url: str, collection: str, run_id: str, search_scope: str = "run") -> None:
         self._weaviate_url = weaviate_url.rstrip("/")
         self.collection = collection
         self.run_id = run_id
+        self.search_scope = search_scope
         self.class_name = _class_name(collection)
 
     def _request(
@@ -77,9 +78,10 @@ class WeaviateBackend:
             + json.dumps(self.run_id)
             + "}"
         )
+        where_clause = f", where: {where_filter}" if self.search_scope == "run" else ""
         return (
             "{ Get { "
-            f"{self.class_name}(nearVector: {near_vector}, limit: {limit}, where: {where_filter}) "
+            f"{self.class_name}(nearVector: {near_vector}, limit: {limit}{where_clause}) "
             "{ doc_id run_id text _additional { id distance } } "
             "} }"
         )
@@ -162,6 +164,8 @@ class WeaviateBackend:
             "name": self.name,
             "url": self._weaviate_url,
             "version": result.get("version"),
+            "schema": self._request("GET", f"/v1/schema/{self.class_name}")[1],
+            "search_scope": self.search_scope,
         }
 
     def close(self) -> None:
