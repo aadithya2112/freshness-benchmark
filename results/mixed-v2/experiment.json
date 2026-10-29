@@ -1,0 +1,457 @@
+{
+  "protocol": "mixed-mutations-v2",
+  "arguments": {
+    "out": "artifacts/publication-v2",
+    "scenarios": [
+      "scifact-small",
+      "nq-10k",
+      "nq-100k",
+      "nq-100k-burst"
+    ],
+    "backends": [
+      "qdrant",
+      "weaviate",
+      "pgvector"
+    ],
+    "trials": 5,
+    "duration": 30.0,
+    "seed": 20261028
+  },
+  "order": [
+    [
+      4,
+      "weaviate",
+      "nq-100k"
+    ],
+    [
+      1,
+      "weaviate",
+      "nq-10k"
+    ],
+    [
+      3,
+      "weaviate",
+      "nq-100k"
+    ],
+    [
+      3,
+      "qdrant",
+      "scifact-small"
+    ],
+    [
+      4,
+      "pgvector",
+      "nq-100k-burst"
+    ],
+    [
+      1,
+      "pgvector",
+      "scifact-small"
+    ],
+    [
+      2,
+      "pgvector",
+      "scifact-small"
+    ],
+    [
+      1,
+      "pgvector",
+      "nq-100k"
+    ],
+    [
+      1,
+      "weaviate",
+      "nq-100k-burst"
+    ],
+    [
+      1,
+      "qdrant",
+      "nq-100k-burst"
+    ],
+    [
+      2,
+      "pgvector",
+      "nq-100k-burst"
+    ],
+    [
+      5,
+      "qdrant",
+      "nq-10k"
+    ],
+    [
+      3,
+      "pgvector",
+      "nq-10k"
+    ],
+    [
+      2,
+      "weaviate",
+      "nq-100k"
+    ],
+    [
+      2,
+      "qdrant",
+      "scifact-small"
+    ],
+    [
+      5,
+      "pgvector",
+      "scifact-small"
+    ],
+    [
+      3,
+      "weaviate",
+      "scifact-small"
+    ],
+    [
+      1,
+      "weaviate",
+      "scifact-small"
+    ],
+    [
+      1,
+      "pgvector",
+      "nq-100k-burst"
+    ],
+    [
+      2,
+      "weaviate",
+      "nq-10k"
+    ],
+    [
+      3,
+      "qdrant",
+      "nq-10k"
+    ],
+    [
+      2,
+      "qdrant",
+      "nq-100k-burst"
+    ],
+    [
+      3,
+      "qdrant",
+      "nq-100k-burst"
+    ],
+    [
+      5,
+      "pgvector",
+      "nq-100k"
+    ],
+    [
+      2,
+      "pgvector",
+      "nq-10k"
+    ],
+    [
+      1,
+      "qdrant",
+      "nq-10k"
+    ],
+    [
+      1,
+      "weaviate",
+      "nq-100k"
+    ],
+    [
+      5,
+      "qdrant",
+      "scifact-small"
+    ],
+    [
+      2,
+      "weaviate",
+      "nq-100k-burst"
+    ],
+    [
+      5,
+      "pgvector",
+      "nq-100k-burst"
+    ],
+    [
+      5,
+      "weaviate",
+      "scifact-small"
+    ],
+    [
+      3,
+      "pgvector",
+      "scifact-small"
+    ],
+    [
+      4,
+      "qdrant",
+      "scifact-small"
+    ],
+    [
+      2,
+      "pgvector",
+      "nq-100k"
+    ],
+    [
+      3,
+      "qdrant",
+      "nq-100k"
+    ],
+    [
+      5,
+      "pgvector",
+      "nq-10k"
+    ],
+    [
+      4,
+      "weaviate",
+      "nq-10k"
+    ],
+    [
+      4,
+      "pgvector",
+      "nq-10k"
+    ],
+    [
+      4,
+      "weaviate",
+      "scifact-small"
+    ],
+    [
+      5,
+      "qdrant",
+      "nq-100k"
+    ],
+    [
+      5,
+      "weaviate",
+      "nq-10k"
+    ],
+    [
+      5,
+      "qdrant",
+      "nq-100k-burst"
+    ],
+    [
+      4,
+      "qdrant",
+      "nq-100k"
+    ],
+    [
+      2,
+      "qdrant",
+      "nq-100k"
+    ],
+    [
+      3,
+      "weaviate",
+      "nq-10k"
+    ],
+    [
+      1,
+      "qdrant",
+      "scifact-small"
+    ],
+    [
+      2,
+      "weaviate",
+      "scifact-small"
+    ],
+    [
+      1,
+      "pgvector",
+      "nq-10k"
+    ],
+    [
+      3,
+      "pgvector",
+      "nq-100k"
+    ],
+    [
+      3,
+      "weaviate",
+      "nq-100k-burst"
+    ],
+    [
+      5,
+      "weaviate",
+      "nq-100k"
+    ],
+    [
+      2,
+      "qdrant",
+      "nq-10k"
+    ],
+    [
+      4,
+      "weaviate",
+      "nq-100k-burst"
+    ],
+    [
+      5,
+      "weaviate",
+      "nq-100k-burst"
+    ],
+    [
+      1,
+      "qdrant",
+      "nq-100k"
+    ],
+    [
+      4,
+      "qdrant",
+      "nq-10k"
+    ],
+    [
+      4,
+      "pgvector",
+      "nq-100k"
+    ],
+    [
+      4,
+      "pgvector",
+      "scifact-small"
+    ],
+    [
+      3,
+      "pgvector",
+      "nq-100k-burst"
+    ],
+    [
+      4,
+      "qdrant",
+      "nq-100k-burst"
+    ]
+  ],
+  "host": {
+    "platform": "macOS-26.6.2-arm64-arm-64bit",
+    "cpu_count": 10,
+    "cpu_model": "Apple M4",
+    "memory_bytes": 17179869184
+  },
+  "source": {
+    "src/freshness_benchmark/__init__.py": "9ebd67f8a0f5ee0cba85c72a89c11d8e4676137dd4b935ae3363567149aeaf4a",
+    "src/freshness_benchmark/backends.py": "feda3cfba4645f84fc193f9357a95150608db0c5b98305bf67c774df60c81dac",
+    "src/freshness_benchmark/benchmark_pack.py": "9f0f4c90028d8058521a1e8500dc7d4a6cecdeaebd5fcffa5735baadae9bc76d",
+    "src/freshness_benchmark/calibration.py": "50110387665da94e6b84f433b1dd2648a22b7a738dcc20b9dd5ea6741fe03cbb",
+    "src/freshness_benchmark/cli.py": "ec3f6ed5774d5687e93b1de69de8a5079d421860fd3006b2d6862f20a127a784",
+    "src/freshness_benchmark/config.py": "8b99bee8fd8e2f782f0d6140f518b706e5f8b9847aa0af1fb8bd71631ffcae91",
+    "src/freshness_benchmark/embeddings.py": "36fd973fddb3ecad4c23ecfe0585008a0db958452686fd3fc182ea6920d49ca8",
+    "src/freshness_benchmark/models.py": "a7069bffd5dd931d4db16cc92c5f7fb31591f64d97df907c7f982cf0ab642d53",
+    "src/freshness_benchmark/pgvector_backend.py": "9f8d3ebf562c1b0023add32c8bea09ee28066be5171b4f353717fd3d9bfe4eb7",
+    "src/freshness_benchmark/probing.py": "64d6cfa5522128cfc37fa19d192671d76dac772bdf2fe9345022b9ee1abc2d28",
+    "src/freshness_benchmark/qdrant_backend.py": "214e21e0a2d7ccd2d04456b1af7bdcee68a08027b739ce60eb61ce7803dd3f58",
+    "src/freshness_benchmark/quality.py": "faa67a046826f995a373bd09e67d968ddd9f3d2ddb5b9c9fc01be645a8d412df",
+    "src/freshness_benchmark/reporting.py": "849084af584f13d45840408bd914836e88b251bc4892d1a03154fb4a27e91a06",
+    "src/freshness_benchmark/runner.py": "98bca7326badbdadc41513c79d0c68a82dd489073ee7d48cf207bba35e8858bd",
+    "src/freshness_benchmark/streaming.py": "e997e44ef65baded334e2432a9320c0d0d70a8415f90c4e399994b266c2c5b24",
+    "src/freshness_benchmark/streaming_backends.py": "c18dae89475f7e3059bcc5168c0275d76decf56e172be0c4fccc140dee68358c",
+    "src/freshness_benchmark/visualize.py": "ba6d5614f309dcfaa2de5920a8d34293b85d06e82972ccba4f24cc56d72e1810",
+    "src/freshness_benchmark/weaviate_backend.py": "dac140dec600511cf4bfb3401c1bffdc1ff2cfd2528a92b2fc344810e750cae1",
+    "src/freshness_benchmark/workload.py": "8aeb73c89eb5e11b04c44b0be3142c6828dc8f0d8828965ba74125544d823978",
+    "scripts/analyze_publication.py": "0e7ac4538e4131391f6e5bbe0c6bfc6118fa449c5741f71df9c1df57d266c03c",
+    "scripts/build_website.py": "57d40f0b8602c0e31c382053f35768892baf4affcd545eae50105dbe4ccae63d",
+    "scripts/bundle_publication.py": "420b68694e4f595143d84e1000b582969116cd56928d51282ccff8a5974bc72b",
+    "scripts/export_v2.py": "f60ef12ef0eb33acea7d71a32c9f00ecf8894b0c0a7613c912c4e233b1e22d25",
+    "scripts/prepare_publication_data.py": "5165bd76f4538c9cf44ae609e857f0dbf42429f142906e5e6054be2201aa5f95",
+    "scripts/prepare_v2_data.py": "faf58acbac65454bd9b83c846144209dab40f77fee7e906af9f5e03a81020994",
+    "scripts/run_publication.py": "6a7ef26e313f8de4181823bf0febd11cddaef8b4b1b56d698f378d9547a571c4",
+    "scripts/run_streaming.py": "0ef376f3e7eaa18d39e83551935bfe04816277e7045f25bcfe6ad41fd035b0c4",
+    "scripts/verify_publication.py": "98908613c84cc6a454dad8b76f158144c39df6e17dc6a9ca470d7890f7e3801d",
+    "scripts/verify_v2.py": "8539026d07204c1bf18eaae58a93002d90e0b622805de1378cc46fbe68aa55c3",
+    "pyproject.toml": "288fc3c00500a7df91380b0e2ccaef456c8218bee3820d62cbf9d21333536c35",
+    "docker-compose.v2.yml": "90c8220172e1453df154e472f5106a22a9df1b67aa974cf08ca01dd253632ff1",
+    "benchmarks/protocol-v2.json": "79493a0255e3cf6ce5b3560b3b86aa7265b63a4f7ccdbd42575ac2e05b0520cb",
+    "benchmarks/nq-v2.lock.json": "f516dcafe7189bee2008186674baa54ccf91d5237ec8d6164895456954ecc0d9",
+    "benchmarks/scifact-v2.lock.json": "3ec7ee4bff001b3d8370a254eef5799775ddaedb3e43e748b88ea969f83f41e5"
+  },
+  "datasets": {
+    "scifact": {
+      "dataset": "scifact",
+      "source": "https://public.ukp.informatik.tu-darmstadt.de/thakur/BEIR/datasets/scifact.zip",
+      "source_sha256": "536e14446a0ba56ed1398ab1055f39fe852686ecad24a6306c80c490fa8e0165",
+      "source_md5": "5f7d1de60b170fc8027bb7898e2efca1",
+      "records": 5183,
+      "queries": 100,
+      "relevant_documents_retained": 107,
+      "seed": 20261028,
+      "license": "Corpus: ODC-By-1.0; claims/evidence: CC-BY-4.0",
+      "license_source": "https://raw.githubusercontent.com/allenai/scifact/master/LICENSE.md",
+      "attribution": "BEIR and original dataset authors; Wikipedia contributors for NQ, SciFact authors and cited article authors for SciFact.",
+      "transformation": "200-word title+text prefix; seeded reservoir of documents with relevant documents for selected test queries retained at front. Simulated mutations; no historical replay.",
+      "model": "sentence-transformers/all-MiniLM-L6-v2",
+      "model_revision": "1110a243fdf4706b3f48f1d95db1a4f5529b4d41",
+      "dimensions": 384,
+      "normalized": true,
+      "max_tokens": 256,
+      "device": "mps",
+      "files": {
+        "corpus.jsonl": "189d58f273468352c9f73c6333c5120dcfb7ba1695984f073f0ebb6c100ed0cd",
+        "queries.json": "c8b333c73353a8c4aeb7d6b63067c9a241aa5d39a0314f0c315ec63019ee9558",
+        "vectors.npy": "b6b21404977151ce565e7d6d57d9931a4679e1ecf4aa44fcd9b29eb54955d09e",
+        "query_vectors.npy": "02324eb7c3b3d2e2f0ec3208453e2ec0efd5d61d9fc845b1f8b7950e913f2730",
+        "UPSTREAM-LICENSE.md": "56ee69bc639cbab8f0b2e4b67091ec5e9390aa99a1d65f0a35e4274686c9a806"
+      }
+    },
+    "nq": {
+      "dataset": "nq",
+      "source": "https://public.ukp.informatik.tu-darmstadt.de/thakur/BEIR/datasets/nq.zip",
+      "source_sha256": "2553bf7bfbab47b1436ca00a34bce57320e18e611fd00999a2a3a1b4714be752",
+      "source_md5": "d4d3d2e48787a744b6f6e691ff534307",
+      "records": 124000,
+      "queries": 100,
+      "relevant_documents_retained": 120,
+      "seed": 20261028,
+      "license": "CC-BY-SA-3.0",
+      "license_source": "https://raw.githubusercontent.com/google-research-datasets/natural-questions/master/nq_open/README.md",
+      "attribution": "BEIR and original dataset authors; Wikipedia contributors for NQ, SciFact authors and cited article authors for SciFact.",
+      "transformation": "200-word title+text prefix; seeded reservoir of documents with relevant documents for selected test queries retained at front. Simulated mutations; no historical replay.",
+      "model": "sentence-transformers/all-MiniLM-L6-v2",
+      "model_revision": "1110a243fdf4706b3f48f1d95db1a4f5529b4d41",
+      "dimensions": 384,
+      "normalized": true,
+      "max_tokens": 256,
+      "device": "mps",
+      "files": {
+        "corpus.jsonl": "9dc487d785e6ee493eccaf764daa3bf8720a8f4fc8c406246065e1ad33a91f5d",
+        "queries.json": "5603f52876ada5d36118b65dea490f1d43900bc159e1804e637796eb9115e999",
+        "vectors.npy": "cb7421eb6ca5964231403f0a922843088f6fd0e01cbf67f2a1076cc7101005db",
+        "query_vectors.npy": "5e666f8d966d8db6b0fd93d4963234d2dffa0ee3910b8fad069a8ee201e8b5d4",
+        "UPSTREAM-LICENSE.md": "8b675521da3fa142ac6bda38c9bcfcc8cff0e2d6128be53a062ed55fb53f7b87"
+      }
+    }
+  },
+  "dependencies": "annotated-doc==0.0.5\nanyio==4.15.1\ncertifi==2026.10.23\nclick==8.5.0\ncloudpickle==3.1.2\ncontourpy==1.4.0\ncycler==0.12.1\nfilelock==4.2.4\nfonttools==4.68.0\n-e file:///Users/aadithya/freshness-benchmark\nfsspec==2026.9.0\nh11==0.16.0\nhf-xet==1.7.1\nhttpcore==1.0.9\nhttpcore2==2.16.0\nhttpx==0.28.1\nhttpx2==2.16.0\nhuggingface-hub==2.3.0\nidna==3.20\njinja2==3.1.6\njoblib==1.6.0\nkiwisolver==1.5.1\nmarkdown-it-py==4.2.0\nmarkupsafe==3.0.4\nmatplotlib==3.11.2\nmdurl==0.1.2\nmpmath==1.3.0\nnarwhals==2.28.0\nnetworkx==3.7\nnumpy==2.5.4\npackaging==26.3\npillow==13.0.0\npsycopg==3.3.6\npsycopg-binary==3.3.6\npygments==2.21.0\npyparsing==3.3.3\npython-dateutil==3.0.0\npyyaml==6.0.3\nregex==2026.9.29\nrich==15.0.0\nsafetensors==0.8.0\nscikit-learn==1.9.1\nscipy==1.18.1\nsentence-transformers==6.2.0\nsetuptools==84.2.1\nshellingham==1.5.4\nsix==1.17.0\nsympy==1.14.0\nthreadpoolctl==3.7.0\ntokenizers==0.23.3\ntorch==2.15.0\ntqdm==4.70.1\ntransformers==5.21.0\ntruststore==0.10.5\ntyper==0.27.3\ntyping-extensions==4.16.0\ntzdata==2026.6\n",
+  "docker_host": {
+    "NCPU": 10,
+    "MemTotal": 8217448448,
+    "KernelVersion": "6.12.54-linuxkit",
+    "OperatingSystem": "Docker Desktop",
+    "ServerVersion": "29.1.2"
+  },
+  "containers": [
+    {
+      "name": "/freshness-v2-qdrant",
+      "image_id": "sha256:9bfc89f9914fc14876a88c05270685921a55b8877b254a98bcc1cc2f0a424cd2",
+      "image": "qdrant/qdrant:v1.20.0",
+      "memory_bytes": 3221225472,
+      "shm_bytes": 67108864,
+      "cpu_quota": 2000000000,
+      "async_indexing": null
+    },
+    {
+      "name": "/freshness-v2-weaviate",
+      "image_id": "sha256:e96e2e04ee6f401a8dcdf89adb80b610516e1491a33769dfed6d1318801e1129",
+      "image": "cr.weaviate.io/semitechnologies/weaviate:1.40.3",
+      "memory_bytes": 3221225472,
+      "shm_bytes": 67108864,
+      "cpu_quota": 2000000000,
+      "async_indexing": "ASYNC_INDEXING=false"
+    },
+    {
+      "name": "/freshness-v2-pgvector",
+      "image_id": "sha256:7b822b0aac60967beb1ea5e576b8602c94c300a157d187f385ae3e0da199b90a",
+      "image": "pgvector/pgvector:pg16@sha256:7b822b0aac60967beb1ea5e576b8602c94c300a157d187f385ae3e0da199b90a",
+      "memory_bytes": 3221225472,
+      "shm_bytes": 1073741824,
+      "cpu_quota": 2000000000,
+      "async_indexing": null
+    }
+  ]
+}
