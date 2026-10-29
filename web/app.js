@@ -371,7 +371,11 @@ $("#details-dialog").addEventListener("click", (e) => {
 });
 $("#share").addEventListener("click", async () => {
   try {
-    await navigator.clipboard.writeText(location.href);
+    const url = new URL(location.href);
+    url.search = '';
+    url.hash = 'results?' + new URLSearchParams({scenario: state.scenario, operation: state.operation, metric: state.metric});
+    history.replaceState(null, '', url);
+    await navigator.clipboard.writeText(url.href);
     toast("Comparison link copied");
   } catch {
     toast("Copy the current URL to share this comparison");

@@ -1,0 +1,65 @@
+name: real-backend smoke
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/integration.yml'
+      - 'src/freshness_benchmark/streaming*.py'
+      - 'src/freshness_benchmark/quality.py'
+      - 'scripts/run_streaming.py'
+      - 'docker-compose.v2.yml'
+jobs:
+  linux-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_PROGRESS_BARS: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install CPU-only preparation environment
+        run: |
+          python -m pip install uv
+          uv venv --python 3.12 .venv
+          uv pip install --python .venv/bin/python torch --index-url https://download.pytorch.org/whl/cpu
+          uv pip install --python .venv/bin/python -e '.[publication]'
+      - name: Prepare licensed SciFact cache
+        run: .venv/bin/python scripts/prepare_v2_data.py scifact --device cpu
+      - name: Start pinned backend images
+        run: |
+          docker compose -p freshness-v2 -f docker-compose.v2.yml up -d
+          for attempt in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:16333/readyz && curl -fsS http://127.0.0.1:18080/v1/.well-known/ready && docker exec freshness-v2-pgvector pg_isready -U postgres -d freshness; then
+              exit 0
+            fi
+            sleep 2
+          done
+          exit 1
+      - name: Exercise real mutation and retrieval APIs
+        run: |
+          .venv/bin/python scripts/run_streaming.py --out artifacts/ci-v2 --scenarios scifact-small --trials 1 --duration 1
+          .venv/bin/python scripts/verify_v2.py artifacts/ci-v2 --check-data
+          .venv/bin/python - <<'PY'
+          import json
+          from pathlib import Path
+          runs=Path('artifacts/ci-v2/runs')
+          summaries=[json.loads(p.read_text()) for p in runs.glob('*/summary.json')]
+          assert len(summaries)==3, 'Every backend must complete setup'
+          for s in summaries:
+              assert s['statuses']['success']==s['total_operations'], s['metadata']['backend']
+              assert all(s['gates'][k] for k in ('ann_recall','preconditions','cohort_integrity','ann_index_used'))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: linux-smoke-evidence
+          path: artifacts/ci-v2
+          retention-days: 30
+      - name: Backend diagnostics and cleanup
+        if: always()
+        run: |
+          docker compose -p freshness-v2 -f docker-compose.v2.yml logs --tail 40
+          docker compose -p freshness-v2 -f docker-compose.v2.yml down

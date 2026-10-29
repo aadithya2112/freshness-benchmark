@@ -91,3 +91,11 @@ The release packager refuses an incomplete or pilot matrix and checks cache
 hashes before redistributing the exact vectors. Publish the checksum inventory
 alongside the archives. The website intentionally keeps the large cache archive
 on GitHub Releases rather than including it in the initial page load.
+
+## Linux compatibility smoke test
+
+The `real-backend smoke` GitHub Actions workflow prepares a CPU SciFact cache,
+starts the pinned images on an Ubuntu runner, exercises all mutation APIs, and
+runs the deep verifier. Its artifacts are labelled as a one-second pilot.
+Shared-runner timings are not reference performance measurements and are never
+merged into the website's comparison data.
