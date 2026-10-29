@@ -1,0 +1,21 @@
+{
+  "protocol": "mixed-mutations-v2",
+  "software_version": "0.5.0",
+  "reference_seed": 20261028,
+  "trials_per_cell": 5,
+  "duration_s": 30,
+  "backends": ["qdrant", "weaviate", "pgvector"],
+  "profiles": {
+    "scifact-small": {"dataset": "scifact", "base_count": 4000, "writes_per_s": 10, "queries_per_s": 10, "arrival": "steady"},
+    "nq-10k": {"dataset": "nq", "base_count": 10000, "writes_per_s": 10, "queries_per_s": 10, "arrival": "steady"},
+    "nq-100k": {"dataset": "nq", "base_count": 100000, "writes_per_s": 10, "queries_per_s": 10, "arrival": "steady"},
+    "nq-100k-burst": {"dataset": "nq", "base_count": 100000, "writes_per_s": 10, "queries_per_s": 10, "arrival": "burst", "burst_multiplier": 4, "burst_duration_s": 1, "burst_period_s": 10}
+  },
+  "mutations": ["insert", "update", "delete"],
+  "observation": {"channels": ["direct_id", "unfiltered_top_10_self_vector"], "minimum_gap_ms": 10, "positive_gap_ms": 25, "minimum_confirmations": 3, "confirmation_window_ms": 50, "deadline_s": 5, "readers_start": "before_writer_dispatch"},
+  "quality": {"queries": 100, "top_k": 10, "cohort": "immutable_filtered", "minimum_ann_recall": 0.95, "tie_tolerance": 0.000001, "semantic_metric": "nDCG@10"},
+  "hnsw": {"m": 16, "ef_construction": 128, "ef_search": 128},
+  "resources_per_backend": {"cpus": 2, "memory_bytes": 3221225472},
+  "statistics": {"estimate": "median_of_trial_p95s", "bootstrap_unit": "trial", "resamples": 5000, "interval": 0.95},
+  "scope": "Single-node client-observed API behavior on this host. Simulated mutations of static datasets. No distributed durability, large-scale capacity, or historical replay claims."
+}

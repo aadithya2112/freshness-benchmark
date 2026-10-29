@@ -19,10 +19,11 @@ def match_doc_in_hits(hits: list[dict[str, Any]], doc_id: str) -> bool:
 class QdrantBackend:
     name = "qdrant"
 
-    def __init__(self, qdrant_url: str, collection: str, run_id: str) -> None:
+    def __init__(self, qdrant_url: str, collection: str, run_id: str, search_scope: str = "run") -> None:
         self._qdrant_url = qdrant_url.rstrip("/")
         self.collection = collection
         self.run_id = run_id
+        self.search_scope = search_scope
         self._prepared = False
 
     def _request(
@@ -139,8 +140,7 @@ class QdrantBackend:
             if status == 409 and "already exists" in error_msg.lower():
                 existing_size = self._collection_vector_size()
                 if existing_size is not None and existing_size != vector_size:
-                    self._delete_collection()
-                    self._create_collection(vector_size)
+                    raise ValueError("Existing collection has incompatible dimensions; use a new collection")
             else:
                 raise RuntimeError(
                     f"Qdrant prepare_run error: HTTP {status}: {body}"
@@ -201,6 +201,8 @@ class QdrantBackend:
                 ]
             },
         }
+        if self.search_scope == "collection":
+            query_payload.pop("filter")
         status, body = self._request_with_status(
             "POST",
             f"/collections/{self.collection}/points/query",
@@ -211,7 +213,7 @@ class QdrantBackend:
                 "vector": vector,
                 "limit": limit,
                 "with_payload": True,
-                "filter": query_payload["filter"],
+                **({"filter": query_payload["filter"]} if "filter" in query_payload else {}),
             }
             body = self._request(
                 "POST",
@@ -241,6 +243,9 @@ class QdrantBackend:
             "url": self._qdrant_url,
             "version": body.get("version"),
             "title": body.get("title"),
+            "collection": self._request("GET", f"/collections/{self.collection}").get("result"),
+            "write_wait": True,
+            "search_scope": self.search_scope,
         }
 
     def close(self) -> None:

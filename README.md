@@ -1,232 +1,51 @@
-# Freshness Benchmark V2
+# Freshness Benchmark
 
-Benchmark how long it takes for a document to become searchable after submission.
+An open benchmark of **client-observed insert, replacement, and deletion visibility** in vector databases during concurrent queries. Protocol 2 compares Qdrant, Weaviate, and pgvector with real retrieval datasets, version-aware probes, independent readers, quality checks, and downloadable evidence.
 
-When `--preload-docs` is enabled, the benchmark first writes setup documents into the same backend and then measures freshness only for the following `--docs` documents. This simulates ingesting into an already-large collection without changing the freshness metric itself.
+The reference experiment has four workloads (SciFact at 4k documents; Natural Questions at 10k and 100k, with steady and burst arrivals), five randomized trials per engine/workload, and 30 seconds of measured traffic per trial. It measures one machine and one declared configuration per engine. It is not a universal database ranking or a measurement of internal indexing time.
 
-Primary metric:
+- [Final reference results and figures](results/mixed-v2/REPORT.md) — 60 trials, 19,350 confirmed mutations, and 18,000 background queries; all validity gates passed
+- [Versioned release and exact data downloads](https://github.com/aadithya2112/freshness-benchmark/releases/tag/v0.5.0)
+- [Protocol and interpretation](methodology.md)
+- [Reproduce, verify, and extend](docs/publication-v2.md)
+- [Machine-readable protocol](benchmarks/protocol-v2.json)
+- [Website source](web/) — interactive comparisons, validity gates, trial inspection, and evidence downloads
+- [Historical insert-only pilot](results/insert-v1/REPORT.md) — kept separate from protocol 2
 
-`freshness_ms = t_searchable - t_submitted`
+## Run
 
-Stage metrics:
+Python 3.12, `uv`, and Docker are the reference environment. The core package supports Python 3.10+. Model weights and dataset archives are downloaded during preparation; no paid API is required. The full experiment rebuilds 60 collections, including 30 at 100k scale.
 
-- `embedding_ms = t_embedding_done - t_submitted`
-- `write_ack_ms = t_write_acked - t_embedding_done`
-- `visibility_ms = t_searchable - t_write_acked`
+```sh
+uv venv --python 3.12 .venv
+uv pip install --python .venv/bin/python -e '.[publication]'
+docker compose -p freshness-v2 -f docker-compose.v2.yml up -d
+.venv/bin/python scripts/prepare_v2_data.py scifact --device cpu
+.venv/bin/python scripts/prepare_v2_data.py nq --device cpu
+.venv/bin/python -m unittest discover -s tests
 
-The benchmark supports:
+# Functional smoke run; not a publication result.
+.venv/bin/python scripts/run_streaming.py \
+  --out artifacts/smoke-v2 --scenarios scifact-small --trials 1 --duration 1
 
-- Backends: `qdrant`, `weaviate`, `pgvector`
-- Embedding modes:
-  - `precomputed` for backend-only fairness
-  - `live` for real end-to-end ingest latency
-- Workload profiles:
-  - `synthetic-small`
-  - `synthetic-medium`
-  - `synthetic-large`
-  - `dataset`
-- Benchmark-pack presets:
-  - `baseline_docs_precomputed`
-  - `baseline_synthetic_precomputed`
-  - `embedding_reality_check`
-
-## Requirements
-
-- Python 3.10+
-- Docker
-- `OPENROUTER_API_KEY` or `OPENAI_API_KEY` only when using `--embedding-mode live`
-
-## Setup
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e .
+# Complete reference protocol.
+.venv/bin/python scripts/run_streaming.py \
+  --out artifacts/my-v2 --trials 5 --duration 30
+.venv/bin/python scripts/verify_v2.py artifacts/my-v2 --check-data
+.venv/bin/python scripts/build_website.py artifacts/my-v2
+python3 -m http.server 4173 --directory website/dist
 ```
 
-## Start Local Backends
+Open `http://localhost:4173`. Downloadable evidence is generated from the experiment; charts contain no hand-entered results. The exact measured cache is identified by hashes. Regenerating vectors on another device can change floating-point values; report the new cache hash.
 
-```bash
-docker compose up -d
-```
+## What makes a comparison valid?
 
-Services:
+Readers start before write acknowledgement and independently inspect direct-ID state and unfiltered vector search. Updates require version 1, and deletions require absence on both channels. Each channel must produce three correct responses spanning 50ms. Separate background queries measure ANN recall against exhaustive cosine search and nDCG against relevance judgments.
 
-- Qdrant: `http://localhost:6333`
-- Weaviate: `http://localhost:8080`
-- pgvector/Postgres: `postgresql://postgres:postgres@localhost:5432/freshness`
+All events stay in reliability denominators. A group qualifies only if every planned trial completes and passes arrival, probe-dispatch, query-dispatch, recall, precondition, capacity, cohort, and index-use checks. Failed cells remain inspectable. Latency percentiles describe successful events, and trial-level uncertainty is reported separately.
 
-## Run A Single Benchmark
+The workload includes observer traffic. Results include client, transport, and database costs. Static corpora with simulated mutations, 30-second trials, local Docker resource sharing, filtered quality queries, and five-trial uncertainty are explicit limits. See [methodology](methodology.md) before interpreting small differences.
 
-Backend-only fairness run:
+## Contribute and cite
 
-```bash
-PYTHONPATH=src python3 -m freshness_benchmark.cli run \
-  --backend qdrant \
-  --embedding-mode precomputed \
-  --docs 200 \
-  --rate 5 \
-  --workload synthetic-medium
-```
-
-Live end-to-end run:
-
-```bash
-export OPENROUTER_API_KEY=your_key_here
-PYTHONPATH=src python3 -m freshness_benchmark.cli run \
-  --backend weaviate \
-  --embedding-mode live \
-  --embedding-model text-embedding-3-small \
-  --provider openrouter \
-  --docs 100 \
-  --rate 3
-```
-
-Useful flags:
-
-```text
---backend qdrant|weaviate|pgvector
---embedding-mode live|precomputed
---embedding-concurrency 4
---write-concurrency 4
---search-concurrency 8
---preload-docs 0
---workload synthetic-small|synthetic-medium|synthetic-large|dataset
---dataset-path ./corpus.jsonl
---dataset-format jsonl|text-dir
---text-field body
---id-field slug
---top-k 10
---poll-interval-ms 250
---max-wait-s 120
-```
-
-Real-data local corpus run:
-
-```bash
-PYTHONPATH=src python3 -m freshness_benchmark.cli run \
-  --backend qdrant \
-  --embedding-mode precomputed \
-  --workload dataset \
-  --dataset-path tests/fixtures/sample.jsonl \
-  --dataset-format jsonl \
-  --text-field body \
-  --id-field slug \
-  --docs 3 \
-  --rate 2
-```
-
-Large-index freshness run:
-
-```bash
-PYTHONPATH=src python3 -m freshness_benchmark.cli run \
-  --backend qdrant \
-  --embedding-mode precomputed \
-  --workload synthetic-medium \
-  --preload-docs 100000 \
-  --docs 100 \
-  --rate 5
-```
-
-## Run A Comparison Matrix
-
-```bash
-PYTHONPATH=src python3 -m freshness_benchmark.cli compare \
-  --backends qdrant weaviate pgvector \
-  --rates 2 5 10 \
-  --embedding-modes precomputed \
-  --docs 200 \
-  --workload synthetic-medium
-```
-
-Add `live` to `--embedding-modes` when you want end-to-end comparisons and have API credentials configured.
-
-## Run The Publishable Benchmark Pack
-
-Canonical command:
-
-```bash
-scripts/run_benchmark_pack.sh --pack-id baseline-pack
-```
-
-This runs the two pinned precomputed presets and writes:
-
-- `benchmark_pack.json`
-- `benchmark_pack.csv`
-- `benchmark_pack.html`
-
-Add the live realism-check preset when credentials are configured:
-
-```bash
-export OPENROUTER_API_KEY=your_key_here
-scripts/run_benchmark_pack.sh \
-  --pack-id baseline-pack-live \
-  --presets baseline_docs_precomputed baseline_synthetic_precomputed embedding_reality_check
-```
-
-The bundled docs-style corpus lives at `benchmarks/corpora/docs_pack.jsonl`.
-
-Required local smoke gates before extending the benchmark further:
-
-```bash
-PYTHONPATH=src python3 -m freshness_benchmark.cli compare \
-  --backends qdrant weaviate pgvector \
-  --rates 2 \
-  --embedding-modes precomputed \
-  --docs 5 \
-  --workload synthetic-small
-```
-
-```bash
-PYTHONPATH=src python3 -m freshness_benchmark.cli compare \
-  --backends qdrant weaviate pgvector \
-  --rates 2 \
-  --embedding-modes precomputed \
-  --docs 3 \
-  --workload dataset \
-  --dataset-path tests/fixtures/sample.jsonl \
-  --dataset-format jsonl \
-  --text-field body \
-  --id-field slug
-```
-
-## Outputs
-
-Single run artifacts under `artifacts/<run-id>/`:
-
-- `trace.jsonl`
-- `metrics.csv`
-- `summary.json`
-- `report.html`
-
-Comparison artifacts under `artifacts/<compare-id>/`:
-
-- `comparison.json`
-- `comparison.csv`
-- `comparison.html`
-- `runs/<run-id>/...` for each underlying run
-
-Benchmark-pack artifacts under `artifacts/<pack-id>/`:
-
-- `benchmark_pack.json`
-- `benchmark_pack.csv`
-- `benchmark_pack.html`
-- `presets/<preset>/trial-<n>/comparison.{json,csv,html}`
-
-## Report Generation
-
-Regenerate the latest single-run HTML report:
-
-```bash
-PYTHONPATH=src python3 -m freshness_benchmark.cli report
-```
-
-## Tests
-
-```bash
-python3 -m unittest discover -s tests -p "test_*.py"
-```
-
-## Methodology
-
-See `methodology.md` for the benchmark definition, fairness rationale, anchor-injection explanation, pinned presets, and validation gates.
+Submit complete experiments using [the contribution protocol](CONTRIBUTING.md). Cite the software/protocol version and exact result artifact using [CITATION.cff](CITATION.cff). Code is MIT; datasets retain their own attribution and licenses. The [legacy CLI](docs/legacy-cli.md) remains available for development and earlier experiments.

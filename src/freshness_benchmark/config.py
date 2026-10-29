@@ -14,6 +14,9 @@ def _default_id(prefix: str) -> str:
 
 
 def _add_shared_run_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--embedding-cache", default=None)
+    parser.add_argument("--search-scope", choices=["run", "collection"], default="run")
+    parser.add_argument("--no-anchor", action="store_true")
     parser.add_argument("--docs", type=int, default=200)
     parser.add_argument("--preload-docs", type=int, default=0)
     parser.add_argument("--rate", type=float, default=5.0)
@@ -186,6 +189,9 @@ def config_from_args(args: argparse.Namespace) -> BenchmarkConfig:
         id_field=args.id_field,
         out_dir=out_dir,
         preload_docs=args.preload_docs,
+        embedding_cache=getattr(args, "embedding_cache", None),
+        search_scope=getattr(args, "search_scope", "run"),
+        inject_anchor=not getattr(args, "no_anchor", False),
     )
     cfg.validate()
     return cfg
@@ -198,6 +204,9 @@ def compare_config_from_args(args: argparse.Namespace) -> CompareConfig:
             run_id=f"{compare_id}-seed",
             out_dir=str(Path("artifacts") / compare_id / "runs" / "seed"),
             **{
+                "embedding_cache": args.embedding_cache,
+                "search_scope": args.search_scope,
+                "no_anchor": args.no_anchor,
                 "docs": args.docs,
                 "rate": args.rate,
                 "collection": args.collection,

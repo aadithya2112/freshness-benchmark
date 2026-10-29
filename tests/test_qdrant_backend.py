@@ -28,7 +28,7 @@ class QdrantBackendTest(unittest.TestCase):
 
         reset_mock.assert_called_once()
 
-    def test_prepare_run_recreates_collection_when_vector_size_changes(self) -> None:
+    def test_prepare_run_refuses_destructive_dimension_change(self) -> None:
         backend = QdrantBackend("http://localhost:6333", "freshness_benchmark", "run-1")
         with patch.object(
             QdrantBackend,
@@ -42,10 +42,11 @@ class QdrantBackendTest(unittest.TestCase):
             QdrantBackend,
             "_create_collection",
         ) as create_mock, patch.object(QdrantBackend, "reset_run_data"):
-            backend.prepare_run(vector_size=128)
+            with self.assertRaises(ValueError):
+                backend.prepare_run(vector_size=128)
 
-        delete_mock.assert_called_once()
-        create_mock.assert_called_once_with(128)
+        delete_mock.assert_not_called()
+        create_mock.assert_not_called()
 
     def test_prepare_run_raises_for_other_conflicts(self) -> None:
         backend = QdrantBackend("http://localhost:6333", "freshness_benchmark", "run-1")

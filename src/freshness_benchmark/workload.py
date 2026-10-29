@@ -91,7 +91,7 @@ def _load_jsonl_dataset(
                 WorkloadDoc(
                     doc_num=offset + len(docs) + 1,
                     doc_id=doc_id,
-                    text=_inject_anchor(source_text, anchor),
+                    text=_inject_anchor(source_text, anchor) if config.inject_anchor else source_text,
                     source_text=source_text,
                     anchor=anchor,
                     source_ref=f"{dataset_path}:{line_num}",
@@ -133,7 +133,7 @@ def _load_text_dir_dataset(
             WorkloadDoc(
                 doc_num=offset + len(docs) + 1,
                 doc_id=doc_id,
-                text=_inject_anchor(source_text, anchor),
+                text=_inject_anchor(source_text, anchor) if config.inject_anchor else source_text,
                 source_text=source_text,
                 anchor=anchor,
                 source_ref=rel_path,
@@ -171,6 +171,8 @@ def load_workload_docs(
     else:
         raise ValueError(f"Unsupported dataset format: {config.dataset_format}")
 
+    if len({doc.doc_id for doc in docs}) != len(docs):
+        raise ValueError("Dataset IDs must be unique")
     if not docs:
         raise ValueError("Dataset workload produced zero documents")
     return docs

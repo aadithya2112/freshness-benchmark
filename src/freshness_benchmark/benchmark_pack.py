@@ -212,7 +212,7 @@ def run_benchmark_pack(
                 {"name": preset_name, **presets[preset_name]}
                 for preset_name in config.presets
             ],
-            "base_run_config": asdict(config.base_run_config),
+            "base_run_config": {**asdict(config.base_run_config), "pgvector_dsn": "[redacted]"},
         },
     )
     write_benchmark_pack_summary_json(pack_dir / "benchmark_pack.json", summary)

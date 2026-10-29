@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import subprocess
 import platform
 import socket
 import sys
@@ -11,7 +13,8 @@ from pathlib import Path
 from typing import Callable
 
 from .backends import VectorBackend, build_backend
-from .embeddings import EmbeddingSource, build_embedding_source
+from .embeddings import CachedEmbeddingSource, EmbeddingSource, build_embedding_source
+from .probing import VisibilityScheduler
 from .models import BenchmarkConfig, CompareConfig, CompareSummary, DocLifecycle, RunSummary, now_utc
 from .qdrant_backend import match_doc_in_hits
 from .reporting import (
@@ -23,6 +26,7 @@ from .reporting import (
     write_metrics_csv,
     write_summary_json,
     write_trace_jsonl,
+    metric_stats,
 )
 from .visualize import generate_comparison_html_report, generate_html_report
 from .workload import load_workload_docs
@@ -71,28 +75,9 @@ def _environment_metadata(config: BenchmarkConfig, embedding_source: EmbeddingSo
             "backend": config.backend,
             "qdrant_url": config.qdrant_url if config.backend == "qdrant" else None,
             "weaviate_url": config.weaviate_url if config.backend == "weaviate" else None,
-            "pgvector_dsn": config.pgvector_dsn if config.backend == "pgvector" else None,
+            "pgvector_dsn": "[redacted]" if config.backend == "pgvector" else None,
         },
     }
-
-
-def _await_searchable(
-    backend: VectorBackend,
-    vector: list[float],
-    doc_id: str,
-    top_k: int,
-    poll_interval_ms: int,
-    max_wait_s: int,
-) -> tuple[bool, int]:
-    deadline = time.monotonic() + max_wait_s
-    attempts = 0
-    while time.monotonic() < deadline:
-        hits = backend.search(vector=vector, limit=top_k)
-        attempts += 1
-        if match_doc_in_hits(hits, doc_id):
-            return True, attempts
-        time.sleep(poll_interval_ms / 1000.0)
-    return False, attempts
 
 
 def _stringify_error(exc: BaseException) -> str:
@@ -113,6 +98,7 @@ def _run_embedding(
     text: str,
 ) -> list[float]:
     vector = embedding_source.get_vector(doc_id, text)
+    lifecycle.monotonic_embedding_done = time.monotonic()
     lifecycle.t_embedding_done = now_utc()
     lifecycle.vector_dimensions = len(vector)
     return vector
@@ -158,6 +144,7 @@ def _run_write(
         source_ref=lifecycle.source_ref,
         vector=vector,
     )
+    lifecycle.monotonic_write_acked = time.monotonic()
     lifecycle.t_write_acked = now_utc()
     return vector
 
@@ -271,31 +258,6 @@ def _preload_documents(
     return len(workload_docs), max(time.monotonic() - start_monotonic, 0.0)
 
 
-def _run_visibility_poll(
-    backend: VectorBackend,
-    config: BenchmarkConfig,
-    lifecycle: DocLifecycle,
-    vector: list[float],
-) -> DocLifecycle:
-    found, attempts = _await_searchable(
-        backend=backend,
-        vector=vector,
-        doc_id=lifecycle.doc_id,
-        top_k=config.top_k,
-        poll_interval_ms=config.poll_interval_ms,
-        max_wait_s=config.max_wait_s,
-    )
-    lifecycle.search_attempts = attempts
-    if found:
-        lifecycle.t_searchable = now_utc()
-        lifecycle.mark_success()
-    else:
-        lifecycle.mark_timeout(
-            f"Doc not found in top-{config.top_k} within {config.max_wait_s}s"
-        )
-    return lifecycle
-
-
 def run_benchmark(
     config: BenchmarkConfig,
     *,
@@ -308,6 +270,7 @@ def run_benchmark(
     embedding_source = (
         embedding_source_factory(config)
         if embedding_source_factory is not None
+        else CachedEmbeddingSource(config.embedding_cache) if config.embedding_cache
         else build_embedding_source(
             embedding_mode=config.embedding_mode,
             provider=config.provider,
@@ -322,6 +285,7 @@ def run_benchmark(
         embedding_source.close()
         raise
     preparation = _BackendPreparation(backend)
+    scheduler = VisibilityScheduler(backend, config)
     records: list[DocLifecycle] = []
     final_futures: list[Future[DocLifecycle]] = []
     preload_run_id = _preload_run_id(config.run_id) if config.preload_docs else None
@@ -350,14 +314,29 @@ def run_benchmark(
                 preload_workload_docs,
             )
 
+        # A deterministic readiness sample checks searchable preloads before measurement.
+        if preload_workload_docs:
+            stride = max(1, len(preload_workload_docs)//32)
+            for doc in preload_workload_docs[::stride][:32]:
+                vector = embedding_source.get_vector(doc.doc_id, doc.text)
+                deadline = time.monotonic() + config.max_wait_s
+                while not match_doc_in_hits(preload_backend.search(vector, config.top_k), doc.doc_id):
+                    if time.monotonic() >= deadline:
+                        raise RuntimeError("Preload readiness sample failed")
+                    time.sleep(config.poll_interval_ms/1000)
+        if len({d.doc_id for d in preload_workload_docs + workload_docs}) != len(preload_workload_docs + workload_docs):
+            raise ValueError("Duplicate IDs across preload and measured documents")
+        if config.embedding_cache:
+            for doc in preload_workload_docs + workload_docs:
+                embedding_source.get_vector(doc.doc_id, doc.text)
+        if embedding_source.dimensions is not None:
+            preparation.ensure(embedding_source.dimensions)
         started_at = now_utc()
         start_monotonic = time.monotonic()
         interval = 1.0 / config.rate
-        if embedding_source.dimensions is not None:
-            preparation.ensure(embedding_source.dimensions)
         with ThreadPoolExecutor(max_workers=config.embedding_concurrency) as embed_pool, ThreadPoolExecutor(
             max_workers=config.write_concurrency
-        ) as write_pool, ThreadPoolExecutor(max_workers=config.search_concurrency) as search_pool:
+        ) as write_pool:
             for idx, workload_doc in enumerate(workload_docs, start=1):
                 scheduled = start_monotonic + ((idx - 1) * interval)
                 sleep_for = scheduled - time.monotonic()
@@ -374,6 +353,8 @@ def run_benchmark(
                     source_text=workload_doc.source_text,
                     source_ref=workload_doc.source_ref,
                     t_submitted=now_utc(),
+                    monotonic_submitted=time.monotonic(),
+                    scheduled_delay_ms=max(0, (time.monotonic()-scheduled)*1000),
                 )
                 records.append(lifecycle)
 
@@ -420,13 +401,7 @@ def run_benchmark(
                             resolve_failure(result_future, lifecycle, exc)
                             return
 
-                        poll_future = search_pool.submit(
-                            _run_visibility_poll,
-                            backend,
-                            config,
-                            lifecycle,
-                            written_vector,
-                        )
+                        poll_future = scheduler.submit(lifecycle, written_vector)
 
                         def on_poll_done(
                             poll_result: Future[DocLifecycle],
@@ -453,6 +428,7 @@ def run_benchmark(
                 future.result()
             completion_elapsed = max(time.monotonic() - start_monotonic, 1e-9)
     finally:
+        scheduler.close()
         backend_info = _safe_backend_info(backend)
         environment = _environment_metadata(config, embedding_source)
         embedding_source.close()
@@ -461,20 +437,38 @@ def run_benchmark(
         backend.close()
 
     finished_at = now_utc()
+    public_config = asdict(config)
+    public_config["pgvector_dsn"] = "[redacted]"
+    environment["schema_version"] = "1.0"
+    environment["cpu_count"] = __import__("os").cpu_count()
+    environment["dataset_sha256"] = (hashlib.sha256(Path(config.dataset_path).read_bytes()).hexdigest()
+                                      if config.dataset_path and Path(config.dataset_path).is_file() else None)
+    try:
+        environment["git_revision"] = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+        environment["git_dirty"] = bool(subprocess.check_output(["git", "status", "--porcelain"], text=True).strip())
+    except (OSError, subprocess.CalledProcessError):
+        environment["git_revision"] = None
     summary = summarize(
         records=records,
-        config=asdict(config),
+        config=public_config,
         backend_info=backend_info,
         environment=environment,
         started_at=started_at.isoformat(),
         finished_at=finished_at.isoformat(),
         wall_clock_s=completion_elapsed,
-        actual_submission_rate=len(workload_docs) / submission_elapsed,
-        actual_completion_rate=len(workload_docs) / completion_elapsed,
+        actual_submission_rate=((len(workload_docs)-1) / submission_elapsed if len(workload_docs)>1 else 0.0),
+        actual_completion_rate=sum(r.status == "success" for r in records) / completion_elapsed,
         preload_written=preload_written,
         preload_wall_clock_s=preload_wall_clock_s,
         preload_run_id=preload_run_id,
     )
+    summary.diagnostics = {
+        "scheduled_delay_ms": metric_stats([r.scheduled_delay_ms for r in records]),
+        "first_probe_queue_ms": metric_stats([r.search_queue_ms for r in records if r.search_queue_ms is not None]),
+        "latency_population": "successful observations only; always read with success_rate",
+        "observation": "upper bound on first retrievability; no absence guarantee from negative ANN probes",
+        "deadline_origin": "submission",
+    }
     write_trace_jsonl(output_dir / "trace.jsonl", records)
     write_metrics_csv(output_dir / "metrics.csv", records)
     write_summary_json(output_dir / "summary.json", summary)
@@ -529,7 +523,7 @@ def run_compare(
             "backends": config.backends,
             "rates": config.rates,
             "embedding_modes": config.embedding_modes,
-            "base_run_config": asdict(config.base_run_config),
+            "base_run_config": {**asdict(config.base_run_config), "pgvector_dsn": "[redacted]"},
         },
     )
     write_compare_summary_json(compare_dir / "comparison.json", compare_summary)

@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+message: "Please cite the protocol version and exact result artifact when using this benchmark."
+title: "Freshness Benchmark: Mixed-Mutation Visibility Protocol v2"
+type: software
+authors:
+  - family-names: "Senthil Kumaran"
+    given-names: "Aadithya"
+version: 0.5.0
+date-released: 2026-10-29
+license: MIT
+repository-code: "https://github.com/aadithya2112/freshness-benchmark"
+abstract: "A reproducible client-observed benchmark of vector-search insert, replacement, and deletion visibility with independent readers, retrieval-quality checks, real datasets, raw evidence, and repeated trials."

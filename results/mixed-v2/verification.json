@@ -1,0 +1,21 @@
+{
+  "verified": true,
+  "complete": true,
+  "check_data": true,
+  "planned_runs": 60,
+  "events": 19350,
+  "queries": 18000,
+  "probes": 145858,
+  "completed_runs": 60,
+  "limited_runs": [],
+  "interrupted_attempts": [
+    {
+      "run": "fb2_429e9a_006",
+      "trial": 2,
+      "backend": "pgvector",
+      "scenario": "scifact-small",
+      "status": "interrupted",
+      "restarted": true
+    }
+  ]
+}
