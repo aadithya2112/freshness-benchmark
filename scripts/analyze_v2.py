@@ -77,6 +77,9 @@ def generate(root):
     interruptions=[c['interrupted_attempt'] for c in data.get('continuations',[]) if 'interrupted_attempt' in c]
     if interruptions:
         lines+=['','## Continuation history','',f'{len(interruptions)} partial attempt was interrupted by the host/session and retained under `continuations/`. The first six completed trials were kept, the environment and measurement-source hashes were checked, calibration was repeated, and the partial seventh trial was restarted from a fresh collection. This interruption is excluded from database reliability statistics because it lacks a terminal measurement record. Raw partial probes and continuation metadata remain in the evidence bundle. Container restart/cache-state differences are an additional limitation.']
+    for continuation in data.get('continuations',[]):
+        if continuation.get('paused_checkpoint'):
+            lines+=['',f"A user-requested pause followed {continuation['completed_prefix']} completed trials at a clean boundary. Containers were stopped and later restarted; environment and source checks and calibration were repeated before continuing. No completed trial was replaced."]
     (root/'REPORT.md').write_text('\n'.join(lines)+'\n')
     print(f'Wrote report and SVG/PDF distributions for {total:,} offered mutations')
 

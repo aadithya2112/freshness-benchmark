@@ -73,6 +73,10 @@ and container restart. Its first six completed trials were retained; the partial
 seventh trial was archived and restarted. Treat the continuation history as part
 of the experiment provenance, including possible cache/host-state differences.
 
+A later user-requested pause stopped cleanly after trial 44. On resumption,
+environment/source checks and calibration were repeated. No trial was interrupted
+or replaced at that boundary. Both continuations remain in the final evidence.
+
 ## Release tooling
 
 After the full matrix finishes, verify it, export results, generate the report,
