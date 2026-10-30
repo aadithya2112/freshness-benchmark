@@ -135,7 +135,7 @@ def export(root,dest):
     with zipfile.ZipFile(dest/'benchmark-source.zip','w',compression=zipfile.ZIP_DEFLATED) as archive:
         for directory in ('src','scripts','tests','docs','benchmarks','web','.github','results'):
             for path in sorted(Path(directory).rglob('*')):
-                if (path.is_file() and '__pycache__' not in path.parts and 'data' not in path.parts
+                if (path.is_file() and not {'__pycache__', 'data', 'node_modules', '.astro', 'dist'} & set(path.parts)
                         and not any(part.endswith('.egg-info') for part in path.parts) and path.name!='.DS_Store'):
                     archive.write(path)
         for name in ('README.md','methodology.md','pyproject.toml','docker-compose.v2.yml','LICENSE','CITATION.cff','CONTRIBUTING.md','CHANGELOG.md'):

@@ -1,18 +1,27 @@
-# Website design
+# Astro website and reading flow
 
-The user requested a minimal, clean, modern benchmark site with standard fonts.
-Reference patterns: [ANN-Benchmarks](https://ann-benchmarks.com/) and
-[ClickBench](https://benchmark.clickhouse.com/) put data, filters, methodology,
-and reproduction links ahead of visual branding.
+The website uses Astro static pages, a system sans-serif font, white surfaces,
+blue links, and readable 16–20px body text. The layout introduces the question,
+shows a scoped result preview, explains the three measurement steps, and then
+invites readers into the full comparison.
 
-The implementation uses a white background, system sans-serif type, restrained
-blue links, thin neutral borders, and a compact navigation bar. Results appear
-as a readable table immediately below workload/operation filters. A small
-supporting interval chart follows the table. No decorative display type,
-oversized hero, gradients, illustration, or chart animation is used.
+The results page places a compact set of controls above three database rows.
+An interactive bar chart shows latency with 95% trial-bootstrap whiskers and a zero-based linear axis. It supports pointer, touch, and keyboard inspection and updates with every filter. Each row gives one primary latency estimate, its trial-level interval,
+confirmation rate, and search recall. Technical metrics and individual trial
+links use native expandable sections. A reading guide explains milliseconds,
+p95, recall, and validity checks alongside the comparison.
 
-Every number comes from exported experiment evidence. Detail dialogs disclose
-trial configuration, timing/quality validity, actual examples, and raw downloads.
-The remaining pages cover methodology, licensed datasets, and reproduction.
-URL parameters preserve comparisons. Mobile uses a contained scrollable table,
-stacked controls, native inputs, visible focus states, and the same evidence.
+Methodology and reproduction pages use a restrained contents column and a
+comfortable article width. Mobile stacks the layout without a wide comparison
+table. Trial records have separate static pages with evidence links. System
+fonts, visible keyboard focus, native controls, and reduced-motion support keep
+the interface accessible and lightweight.
+
+The frontend and Sites skills guide implementation. The data-oriented
+[ANN-Benchmarks](https://ann-benchmarks.com/) and
+[ClickBench](https://benchmark.clickhouse.com/) remain useful reference patterns;
+this iteration adds a gentler explanatory path for first-time readers.
+
+See [web/README.md](../web/README.md) for the build commands. All scores come
+from the audited experiment, and immutable version 0.5.0 downloads retain
+their release hashes when the website is rebuilt.

@@ -1,0 +1,152 @@
+---
+import Base from "../../layouts/Base.astro";
+import {
+  data,
+  names,
+  workloads,
+  gates,
+  format,
+  percent,
+} from "../../lib/data.js";
+export function getStaticPaths() {
+  return data.runs.map((run) => ({ params: { id: run.run }, props: { run } }));
+}
+const { run } = Astro.props;
+const s = run.summary;
+const back = `/results/?scenario=${run.scenario}&operation=insert`;
+---
+
+<Base title={`${names[run.backend]} · Trial ${run.trial}`}>
+  <div class="wrap page-heading">
+    <a class="back-link" href={back}>
+      ← Back to comparisons
+    </a>
+    <p class="eyebrow">Individual trial</p>
+    <h1>
+      {names[run.backend]} · Trial {run.trial}
+    </h1>
+    <p class="lead">{workloads[run.scenario]?.short || run.scenario}</p>
+    <p class="page-meta">
+      Run <code>{run.run}</code>
+    </p>
+  </div>
+  <article class="wrap prose single-article">
+    {s ? (
+      <>
+        <section>
+          <h2>Setup</h2>
+          <dl class="definition-list">
+            <dt>Collection</dt>
+            <dd>
+              {s.metadata.base_count.toLocaleString("en-US")} unchanged
+              documents + {s.metadata.preloaded_mutable} initial mutation
+              targets
+            </dd>
+            <dt>Measured phase</dt>
+            <dd>
+              {s.config.duration_s} seconds · {s.config.rate} changes/s
+              {s.config.arrival === "burst"
+                ? ` (×${s.config.burst_multiplier} during bursts)`
+                : ""}{" "}
+              · {s.config.query_rate} background queries/s
+            </dd>
+            <dt>Database</dt>
+            <dd>
+              Version {s.metadata.backend_before.version} · 2 CPUs · 3 GiB
+              memory
+            </dd>
+          </dl>
+        </section>
+        <section>
+          <h2>Validity checks</h2>
+          <ul class="check-list">
+            {Object.entries(s.gates).map(([key, ok]) => (
+              <li>
+                <span>{gates[key] || key}</span>
+                <strong class={ok ? "pass" : "limited"}>
+                  {ok ? "Passed" : "Failed"}
+                </strong>
+              </li>
+            ))}
+          </ul>
+        </section>
+        <section>
+          <h2>Measurements</h2>
+          <div class="table-scroll">
+            <table>
+              <caption>
+                Successful-change latencies and all-offered confirmation rates
+              </caption>
+              <thead>
+                <tr>
+                  <th>Change</th>
+                  <th>First visible p95</th>
+                  <th>Confirmed p95</th>
+                  <th>Confirmed changes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.entries(s.operations).map(([op, o]) => (
+                  <tr>
+                    <th scope="row">{op === "update" ? "Replace" : op}</th>
+                    <td>{format(o.first_observed_ms.p95)} ms</td>
+                    <td>{format(o.confirmed_ms.p95)} ms</td>
+                    <td>
+                      {o.success}/{o.count}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p>
+            Background queries: {s.query.success}/{s.query.count} succeeded ·
+            recall {percent(s.query.ann_recall_at_10)} · p95 time{" "}
+            {format(s.query.latency_ms.p95)} ms.
+          </p>
+          <details>
+            <summary>Client scheduling and request times</summary>
+            <p>
+              Arrival lag p95: {format(s.diagnostics.schedule_delay_ms.p95)} ms.
+              Probe dispatch lag p95:{" "}
+              {format(s.diagnostics.probe_dispatch_ms.p95)} ms. Probe request
+              p95: {format(s.diagnostics.probe_service_ms.p95)} ms. Write
+              request p95: {format(s.diagnostics.write_service_ms.p95)} ms.
+            </p>
+          </details>
+        </section>
+        <section>
+          <h2>Inspect the raw evidence</h2>
+          <p>These compressed files are the inputs to the evidence audit.</p>
+          <div class="inline-links">
+            {[
+              "summary.json",
+              "events.jsonl",
+              "probes.jsonl",
+              "queries.jsonl",
+              "reference.json",
+            ].map((name) => (
+              <a href={`/data/evidence/${run.run}-${name}.gz`}>{name} ↓</a>
+            ))}
+          </div>
+          <details>
+            <summary>Effective database configuration</summary>
+            <pre><code>{JSON.stringify(s.metadata.backend_before,null,2)}</code></pre>
+          </details>
+        </section>
+      </>
+    ) : (
+      <section>
+        <h2>Setup failed</h2>
+        <p>
+          This planned trial remains in the inventory. No invented event
+          measurements replace it.
+        </p>
+        <pre>{run.failure?.error||run.error}</pre>
+        <a href={`/data/evidence/${run.run}-failure.json.gz`}>
+          Failure evidence ↓
+        </a>
+      </section>
+    )}
+  </article>
+</Base>

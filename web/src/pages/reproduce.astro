@@ -1,0 +1,208 @@
+---
+import Base from "../layouts/Base.astro";
+import { release, repo } from "../lib/data.js";
+const downloads = [
+  [
+    "Complete release",
+    release + "/tag/v0.5.0",
+    "Report, figures, exact vectors, raw evidence, and checksums.",
+  ],
+  [
+    "Benchmark source",
+    release + "/download/v0.5.0/benchmark-source-v0.5.0.zip",
+    "The maintained 0.5.0 benchmark code, tests, protocol, and original website.",
+  ],
+  [
+    "Complete experiment evidence",
+    "/data/benchmark-evidence.tar.gz",
+    "Every raw observation, calibration trace, and continuation record.",
+  ],
+  [
+    "Exact data and vectors",
+    release + "/download/v0.5.0/reference-data-v2.tar.gz",
+    "The exact measured cache, with upstream terms and attribution.",
+  ],
+  [
+    "Results as CSV",
+    "/data/results.csv",
+    "A compact comparison for your own analysis.",
+  ],
+  [
+    "Results and provenance as JSON",
+    "/data/results.json",
+    "Aggregates, per-trial metadata, and validity checks.",
+  ],
+  [
+    "Exact source at experiment launch",
+    "/data/experiment-source.tar.gz",
+    "The immutable measurement source snapshot. Use maintained source as the full project scaffold.",
+  ],
+  [
+    "Verification report",
+    "/data/verification.json",
+    "Results of the deep cache, retrieval-quality, and raw-evidence audit.",
+  ],
+  [
+    "Download checksums",
+    "/data/checksums.json",
+    "SHA-256 inventory. Checksums establish integrity, not publisher authenticity.",
+  ],
+];
+const commands = `uv venv --python 3.12 .venv
+uv pip install --python .venv/bin/python -e '.[publication]'
+docker compose -p freshness-v2 -f docker-compose.v2.yml up -d
+.venv/bin/python scripts/prepare_v2_data.py scifact --device cpu
+.venv/bin/python scripts/prepare_v2_data.py nq --device cpu
+
+# Start with a functional smoke run.
+.venv/bin/python scripts/run_streaming.py \\
+  --out artifacts/my-smoke --scenarios scifact-small \\
+  --trials 1 --duration 1
+
+# Run the complete reference matrix.
+.venv/bin/python scripts/run_streaming.py \\
+  --out artifacts/my-v2 --trials 5 --duration 30
+.venv/bin/python scripts/verify_v2.py artifacts/my-v2 --check-data`;
+---
+
+<Base title="Reproduce and download">
+  <div class="wrap page-heading">
+    <p class="eyebrow">Inspect it. Repeat it. Extend it.</p>
+    <h1>Everything behind a result.</h1>
+    <p class="lead">
+      Download the evidence first, or run the same protocol on your own
+      hardware. No paid model API is required.
+    </p>
+  </div>
+  <div class="wrap article-layout">
+    <aside class="contents" aria-label="On this page">
+      <p>On this page</p>
+      <a href="#downloads">Downloads</a>
+      <a href="#run">Run the benchmark</a>
+      <a href="#verify">Verify the evidence</a>
+      <a href="#contribute">Submit results</a>
+      <a href="#cite">Cite this release</a>
+    </aside>
+    <article class="prose">
+      <section id="downloads">
+        <h2>Download the benchmark</h2>
+        <div class="download-list">
+          {downloads.map(([label, url, desc]) => (
+            <a href={url}>
+              <div>
+                <strong>{label}</strong>
+                <span>{desc}</span>
+              </div>
+              <span aria-hidden="true">↗</span>
+            </a>
+          ))}
+        </div>
+        <p>
+          The current Astro website source is in{" "}
+          <a href={repo + "/tree/main/web"}>the repository’s web directory</a>.
+          The immutable 0.5.0 source archive retains the website that
+          accompanied that release.
+        </p>
+      </section>
+      <section id="run">
+        <h2>Run it on your hardware</h2>
+        <p>
+          Use Python 3.12, uv, and Docker. Download and unzip the source, or
+          clone the repository, then run these commands from its root. Data
+          preparation downloads public archives and model weights.
+        </p>
+        <p>
+          For exact measured input vectors, extract{" "}
+          <code>reference-data-v2.tar.gz</code> at the repository root and skip
+          both preparation commands. CPU regeneration creates a different cache
+          hash; report it.
+        </p>
+        <div class="code-heading">
+          <span>Repository root</span>
+          <button type="button" id="copy-commands">
+            Copy commands
+          </button>
+        </div>
+        <pre><code id="run-commands">{commands}</code></pre>
+        <p id="copy-status" role="status"></p>
+        <p>
+          A complete run builds 60 fresh collections, including 30 at 100k
+          scale. Keep other heavy workloads off the host and run one matrix at a
+          time. A smoke run checks functionality; it is not a reference result.
+        </p>
+        <p>
+          <a href={repo + "/blob/main/docs/publication-v2.md"}>
+            Full environment, build, and reproduction guide →
+          </a>
+        </p>
+      </section>
+      <section id="verify">
+        <h2>Audit the downloaded evidence</h2>
+        <pre><code>{`tar -xzf benchmark-evidence.tar.gz
+.venv/bin/python scripts/verify_v2.py publication-v2
+# With the exact measured cache available:
+.venv/bin/python scripts/verify_v2.py publication-v2 --check-data`}</code></pre>
+        <p>
+          The verifier reconstructs confirmations and summary metrics from raw
+          probes. The deep mode also checks cache hashes and recomputes
+          retrieval quality. The idle baseline is retained as aggregates; the
+          deep query-quality audit covers the measured mixed phase.
+        </p>
+        <p>
+          A passing verifier establishes internal consistency, not independent
+          authentication or performance replication. A report can honestly
+          retain failed validity checks and still verify.
+        </p>
+      </section>
+      <section id="contribute">
+        <h2>Share a complete experiment</h2>
+        <p>
+          Include every planned trial, raw event and probe traces, exact data
+          and model hashes, source, image versions, resource limits,
+          calibration, and failed checks. Explain configuration changes and keep
+          hardware tracks separate.
+        </p>
+        <p>
+          Community results remain unverified until independently reproduced.
+        </p>
+        <a
+          class="button primary"
+          href={repo + "/issues/new?template=benchmark_result.md"}
+        >
+          Submit results on GitHub ↗
+        </a>
+      </section>
+      <section id="cite">
+        <h2>Cite the protocol and result version</h2>
+        <p>
+          Aadithya Senthil Kumaran.{" "}
+          <em>Freshness Benchmark: Mixed-Mutation Visibility Protocol v2.</em>{" "}
+          Software version 0.5.0, 2026.
+        </p>
+        <p>
+          Identify the hardware track, link to the release, and cite the
+          original datasets separately.{" "}
+          <a href={repo + "/blob/v0.5.0/CITATION.cff"}>
+            Machine-readable citation ↗
+          </a>
+        </p>
+      </section>
+    </article>
+  </div>
+  <script>
+    document
+      .querySelector("#copy-commands")
+      .addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText(
+            document.querySelector("#run-commands").textContent,
+          );
+          document.querySelector("#copy-status").textContent =
+            "Commands copied.";
+        } catch {
+          document.querySelector("#copy-status").textContent =
+            "Select the commands above to copy them.";
+        }
+      });
+  </script>
+</Base>
