@@ -5,6 +5,7 @@ const {
   description = "Understand how quickly vector database changes become visible. Explore audited results, plain-language explanations, and reproducible evidence.",
 } = Astro.props;
 const current = Astro.url.pathname;
+const canonical = new URL(current, Astro.site);
 const nav = [
   ["/", "Results"],
   ["/methodology/", "How it works"],
@@ -20,6 +21,7 @@ const nav = [
     <meta name="description" content={description} />
     <meta name="theme-color" content="#ffffff" />
     <meta name="generator" content={Astro.generator} />
+    <link rel="canonical" href={canonical} />
     <link rel="icon" href="/icon.svg" type="image/svg+xml" />
     <title>{title === 'Freshness Benchmark' ? title : `${title} · Freshness Benchmark`}</title>
   </head>
