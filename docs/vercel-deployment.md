@@ -1,6 +1,6 @@
 # Vercel hosting
 
-Production: https://freshness-benchmark-aadithya2112s-projects.vercel.app
+Production: https://freshness-benchmark.vercel.app
 
 The public site is a static Astro build. Vercel's project root is the repository
 root, so the build can read `results/mixed-v2/results.json` outside `web/`.
