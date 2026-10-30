@@ -1,0 +1,13 @@
+---
+import Base from "../layouts/Base.astro";
+---
+
+<Base title="Results">
+  <div class="wrap page-heading">
+    <h1>Results have moved to the homepage.</h1>
+    <a href="/#results">Open the benchmark results →</a>
+  </div>
+  <script>
+    location.replace("/" + location.search + "#results");
+  </script>
+</Base>

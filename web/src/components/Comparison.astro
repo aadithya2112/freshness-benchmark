@@ -1,0 +1,188 @@
+---
+import {
+  data,
+  names,
+  workloads,
+  version,
+  format,
+  percent,
+} from "../lib/data.js";
+import { chartSVG } from "../lib/chart.js";
+const groups = data.groups;
+const initial = groups.filter(
+  (g) => g.scenario === "nq-100k" && g.operation === "insert",
+);
+---
+
+<section
+  id="comparison"
+  class="comparison"
+  aria-label="Compare database results"
+>
+  <form class="comparison-controls" onsubmit="return false">
+    <label for="workload">
+      1. Choose a workload
+      <select id="workload" name="scenario">
+        {Object.entries(workloads).map(([key, w]) => (
+          <option value={key}>{w.label}</option>
+        ))}
+      </select>
+    </label>
+    <fieldset>
+      <legend>2. Choose a change</legend>
+      <div class="operation-buttons">
+        {[
+          ["insert", "Insert"],
+          ["update", "Replace"],
+          ["delete", "Delete"],
+        ].map(([op, label]) => (
+          <button
+            type="button"
+            data-operation={op}
+            aria-pressed={op === "insert"}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+    </fieldset>
+    <label class="metric-select" for="metric">
+      Measure
+      <select id="metric">
+        <option value="first">First visible</option>
+        <option value="confirmed">Repeated confirmation</option>
+        <option value="query">Background query time</option>
+      </select>
+    </label>
+  </form>
+  <div class="metric-heading">
+    <div>
+      <h2 id="metric-title">Time until the change is visible</h2>
+    </div>
+  </div>
+  <figure class="latency-figure" aria-labelledby="metric-title">
+    <div id="latency-graph" set:html={chartSVG(initial, "first")} />
+    <figcaption>
+      <span id="graph-detail" role="status">
+        Lower bars mean faster observations. Select a bar for its exact values.
+      </span>
+      <span>Median trial p95 · linear scale starts at zero</span>
+    </figcaption>
+  </figure>
+  <details class="comparison-notes">
+    <summary>How to read this graph</summary>
+    <p id="metric-explanation">
+      Both a direct read and a search result have shown the new state. Lower is
+      faster.
+    </p>
+    <p class="small-note">
+      Times are medians of five trial p95s. The interval shows uncertainty in
+      that estimate.{" "}
+      <a href="/methodology/#reading-results">Help me read these numbers →</a>
+    </p>
+    <p id="workload-description" class="workload-description">
+      {workloads["nq-100k"].description}
+    </p>
+  </details>
+  <div
+    class="compact-engines"
+    id="comparison-list"
+    aria-live="polite"
+    aria-atomic="false"
+  >
+    {initial.map((g) => (
+      <article class="engine-result" data-engine={g.backend}>
+        <div class="engine-top">
+          <div>
+            <h3>{names[g.backend]}</h3>
+            <p class="engine-version">
+              Version {version(g.backend)} · {g.trials} trials
+            </p>
+          </div>
+          <div class="engine-time">
+            <strong>{format(g.first_p95)}</strong>
+            <span>milliseconds</span>
+          </div>
+        </div>
+        <div class="interval-track" aria-hidden="true">
+          <span
+            style={`width:${(g.first_p95 / Math.max(...initial.map((x) => x.first_p95))) * 100}%`}
+          ></span>
+        </div>
+        <p class="interval-label">
+          95% interval: {format(g.first_ci[0])}–{format(g.first_ci[1])} ms
+        </p>
+        <dl class="engine-facts">
+          <div>
+            <dt>Changes confirmed</dt>
+            <dd>{percent(g.success_rate)}</dd>
+          </div>
+          <div>
+            <dt>Search recall</dt>
+            <dd>{percent(g.ann_recall)}</dd>
+          </div>
+          <div>
+            <dt>Validity checks</dt>
+            <dd class={g.eligible ? "pass" : "limited"}>
+              {g.eligible ? "All passed" : "Limits apply"}
+            </dd>
+          </div>
+        </dl>
+        <details>
+          <summary>More metrics and individual trials</summary>
+          <div class="engine-details">
+            <dl>
+              <div>
+                <dt>Repeated confirmation, p95</dt>
+                <dd>{format(g.confirmed_p95)} ms</dd>
+              </div>
+              <div>
+                <dt>Background query, p95</dt>
+                <dd>{format(g.query_p95)} ms</dd>
+              </div>
+              <div>
+                <dt>Confirmed within 100 ms</dt>
+                <dd>{percent(g.within_100ms)}</dd>
+              </div>
+              <div>
+                <dt>Relevance score (nDCG@10)</dt>
+                <dd>{format(g.ndcg)}</dd>
+              </div>
+            </dl>
+            <p class="trial-links">
+              {g.run_ids.map((id, i) => (
+                <a href={`/trials/${id}/`}>
+                  Trial {data.runs.find((r) => r.run === id)?.trial ?? i + 1} →
+                </a>
+              ))}
+            </p>
+          </div>
+        </details>
+      </article>
+    ))}
+  </div>
+  <div class="comparison-bottom">
+    <p>
+      Times describe confirmed changes. Reliability includes all offered
+      changes.
+    </p>
+    <button id="share-comparison" class="text-button" type="button">
+      Copy comparison link
+    </button>
+    <span id="share-status" role="status"></span>
+  </div>
+</section>
+<script
+  id="comparison-data"
+  type="application/json"
+  set:html={JSON.stringify({
+    groups,
+    names,
+    workloads,
+    versions: Object.fromEntries(
+      Object.keys(names).map((k) => [k, version(k)]),
+    ),
+    runs: data.runs.map((r) => ({ run: r.run, trial: r.trial })),
+  }).replace(/</g, "\u003c")}
+/>
+<script src="../scripts/comparison.js"></script>

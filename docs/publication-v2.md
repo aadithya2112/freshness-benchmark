@@ -41,11 +41,12 @@ Each matrix directory must be new. To diagnose a failure, use a separate pilot d
 ## Build and preview the website
 
 ```sh
+npm ci --prefix web
 .venv/bin/python scripts/build_website.py artifacts/my-v2
 python3 -m http.server 4173 --bind 127.0.0.1 --directory website/dist
 ```
 
-The canonical UI sources are in `web/`; generated output and the separate hosting checkout are ignored under `website/`. Buildless HTML/CSS/JS can be hosted by any static server. Results are loaded from generated JSON. Filters are encoded in the URL, charts expose the same values as the accessible result table, and trial dialogs link to compressed evidence. There are no fabricated example scores or client-side result submissions.
+The canonical UI sources are in `web/`; generated output and the separate hosting checkout are ignored under `website/`. Astro generates static HTML with system fonts and normal page routes. The build requires Node 24+ and the pinned npm lockfile. Results are rendered from audited JSON, and a small script updates the comparison filters. Filters are encoded in the URL, native expandable rows show advanced metrics, and individual trial pages link to compressed evidence. There are no fabricated example scores or client-side result submissions.
 
 The public site is generated from one experiment at a time. Community results require review and independent replication before being called verified. Do not combine hardware tracks or protocol versions into a single unqualified leaderboard.
 

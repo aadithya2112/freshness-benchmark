@@ -1,0 +1,68 @@
+---
+import "../styles/global.css";
+const {
+  title = "Freshness Benchmark",
+  description = "Understand how quickly vector database changes become visible. Explore audited results, plain-language explanations, and reproducible evidence.",
+} = Astro.props;
+const current = Astro.url.pathname;
+const nav = [
+  ["/", "Results"],
+  ["/methodology/", "How it works"],
+  ["/reproduce/", "Reproduce"],
+];
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <meta name="theme-color" content="#ffffff" />
+    <meta name="generator" content={Astro.generator} />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <title>{title === 'Freshness Benchmark' ? title : `${title} · Freshness Benchmark`}</title>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">
+      Skip to content
+    </a>
+    <header class="site-header">
+      <div class="header-inner">
+        <a class="brand" href="/">
+          Freshness Benchmark<span class="brand-dot" aria-hidden="true"></span>
+        </a>
+        <nav aria-label="Main navigation">
+          {nav.map(([href, label]) => (
+            <a href={href} aria-current={current === href ? "page" : undefined}>
+              {label}
+            </a>
+          ))}
+        </nav>
+      </div>
+    </header>
+    <main id="main">
+      <slot />
+    </main>
+    <footer class="site-footer">
+      <div>
+        <a class="brand" href="/">
+          Freshness Benchmark
+        </a>
+        <p>Open measurements. Inspectable evidence.</p>
+      </div>
+      <div class="footer-links">
+        <a href="/datasets/">Datasets & licenses</a>
+        <a href="https://github.com/aadithya2112/freshness-benchmark">
+          GitHub ↗
+        </a>
+        <a href="https://github.com/aadithya2112/freshness-benchmark/releases/tag/v0.5.0">
+          Release 0.5.0 ↗
+        </a>
+      </div>
+      <p class="footer-note">
+        Protocol 2 · A single-host reference. Read the scope before comparing.
+      </p>
+    </footer>
+  </body>
+</html>

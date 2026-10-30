@@ -13,3 +13,6 @@ benchmarks/data/
 
 # Separate Sites checkout; canonical website sources live in web/.
 website/
+
+node_modules/
+.astro/

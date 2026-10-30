@@ -1,0 +1,36 @@
+---
+import Base from "../layouts/Base.astro";
+import Comparison from "../components/Comparison.astro";
+import { data, mutations } from "../lib/data.js";
+---
+
+<Base>
+  <div class="wrap unified-intro">
+    <h1>Vector database freshness.</h1>
+    <p>How quickly do inserts, replacements, and deletions become visible?</p>
+    <div class="unified-meta">
+      <span>
+        {data.completed} trials · {mutations.toLocaleString("en-US")} changes ·
+        3 databases
+      </span>
+      <a href="/data/results.csv" download>
+        Download CSV ↓
+      </a>
+      <a href="/methodology/">How it works →</a>
+    </div>
+  </div>
+  <div class="wrap unified-results" id="results">
+    <Comparison />
+  </div>
+  <p class="wrap unified-scope">
+    Single-host reference · Apple M4 · 2 CPUs / 3 GiB per database.{" "}
+    <a href="/methodology/#limits">Scope and limitations →</a>
+  </p>
+  <script>
+    const [page, query] = location.hash.slice(1).split("?");
+    if (page === "results" && query)
+      location.replace("/?" + query + "#results");
+    else if (["methodology", "datasets", "reproduce"].includes(page))
+      location.replace("/" + page + "/");
+  </script>
+</Base>

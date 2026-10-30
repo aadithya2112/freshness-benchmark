@@ -1,0 +1,89 @@
+---
+import Base from "../layouts/Base.astro";
+import { data } from "../lib/data.js";
+---
+
+<Base title="Datasets and licenses">
+  <div class="wrap page-heading">
+    <p class="eyebrow">The data behind the measurements</p>
+    <h1>Real text. Real questions.</h1>
+    <p class="lead">
+      Two retrieval datasets provide shared documents, questions, and relevance
+      judgments for every database.
+    </p>
+  </div>
+  <article class="wrap prose single-article">
+    {Object.entries(data.experiment.datasets).map(([key, d]) => (
+      <section>
+        <h2>{key === "nq" ? "Natural Questions" : "SciFact"}</h2>
+        <p>
+          {key === "nq"
+            ? "Questions from real search users paired with Wikipedia passages. Workloads use 10,000 or 100,000 immutable documents."
+            : "Scientific claims paired with research abstracts and evidence judgments. The workload uses 4,000 immutable documents."}
+        </p>
+        <dl class="dataset-facts">
+          <div>
+            <dt>Cached documents</dt>
+            <dd>{d.records.toLocaleString("en-US")}</dd>
+          </div>
+          <div>
+            <dt>Selected questions</dt>
+            <dd>{d.queries}</dd>
+          </div>
+          <div>
+            <dt>Vector dimensions</dt>
+            <dd>{d.dimensions}</dd>
+          </div>
+        </dl>
+        <p>
+          <strong>License:</strong> {d.license}
+        </p>
+        <p>{d.attribution}</p>
+        <p>{d.transformation}</p>
+        <div class="inline-links">
+          <a href={`/data/${key}-manifest.json`}>Manifest and hashes ↓</a>
+          <a href={`/data/${key}-LICENSE.md`}>Upstream license ↓</a>
+          <a href={d.source}>Source archive ↗</a>
+        </div>
+      </section>
+    ))}
+    <section>
+      <h2>How the subsets are prepared</h2>
+      <p>
+        A fixed seed selects 100 test questions. All documents judged relevant
+        to those questions are retained first; remaining documents are selected
+        with a seeded reservoir. This deliberately preserves relevance judgments
+        inside the tested collection. The resulting scores are not full BEIR
+        scores.
+      </p>
+      <h3>One embedding model, outside the clock</h3>
+      <p>
+        We cache normalized 384-dimensional float32 vectors from{" "}
+        <a href="https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2">
+          all-MiniLM-L6-v2
+        </a>{" "}
+        at revision <code>1110a243fdf4706b3f48f1d95db1a4f5529b4d41</code>. Input
+        is limited to a 200-word prefix followed by the model’s 256-token limit.
+        Model license: Apache-2.0.
+      </p>
+      <p>
+        The reference vectors were prepared on Apple MPS. Regeneration on other
+        devices can change floating-point values. Use the exact cache download
+        for byte-identical input data, or report your regenerated cache hash.
+      </p>
+      <p>
+        The MIT code license does not replace dataset terms. See the{" "}
+        <a href="https://github.com/aadithya2112/freshness-benchmark/blob/v0.5.0/docs/DATA-NOTICE.md">
+          full attribution and transformation notice
+        </a>
+        .
+      </p>
+      <a
+        class="button primary"
+        href="https://github.com/aadithya2112/freshness-benchmark/releases/download/v0.5.0/reference-data-v2.tar.gz"
+      >
+        Download exact data and vectors ↓
+      </a>
+    </section>
+  </article>
+</Base>

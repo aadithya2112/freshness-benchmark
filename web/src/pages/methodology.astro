@@ -1,0 +1,246 @@
+---
+import Base from "../layouts/Base.astro";
+import { data, gates, format } from "../lib/data.js";
+---
+
+<Base title="How the benchmark works">
+  <div class="wrap page-heading">
+    <p class="eyebrow">The method, explained</p>
+    <h1>What are we measuring?</h1>
+    <p class="lead">
+      The time between submitting a document change and observing the requested
+      state through the database’s public APIs.
+    </p>
+  </div>
+  <div class="wrap article-layout">
+    <aside class="contents" aria-label="On this page">
+      <p>On this page</p>
+      <a href="#changes">The three changes</a>
+      <a href="#clock">How the clock works</a>
+      <a href="#reading-results">Reading the results</a>
+      <a href="#checks">Quality and validity</a>
+      <a href="#limits">Scope and limitations</a>
+    </aside>
+    <article class="prose">
+      <section id="changes">
+        <h2>Three everyday changes</h2>
+        <dl class="definition-list">
+          <dt>Insert</dt>
+          <dd>
+            Add a new document. It must be present in a direct read and appear
+            with its new version in vector search.
+          </dd>
+          <dt>Replace</dt>
+          <dd>
+            Keep the document ID, but replace its content and vector. Finding
+            the old version does not count. Before the write, the target must be
+            absent from search with its new vector.
+          </dd>
+          <dt>Delete</dt>
+          <dd>
+            Remove a previously retrievable document. It must become absent in
+            both direct reads and repeated searches with its old vector. A
+            missing search hit alone is insufficient.
+          </dd>
+        </dl>
+      </section>
+      <section id="clock">
+        <h2>A clock that starts with the application</h2>
+        <p>
+          We start the clock when the client submits a change. Separate readers
+          begin before the write acknowledgement and check the direct-ID and
+          vector-search APIs independently.
+        </p>
+        <div class="reading-callout compact">
+          <h3>Two useful milestones</h3>
+          <p>
+            <strong>First visible:</strong> the later of the first correct
+            response on each read channel. Both channels have shown the target
+            state by that time, although they were not sampled at the same
+            instant.
+          </p>
+          <p>
+            <strong>Repeated confirmation:</strong> each channel has returned at
+            least three correct responses spanning 50 ms. Incorrect responses
+            and read errors reset that channel’s confirmation sequence.
+          </p>
+        </div>
+        <p>
+          Confirmation includes its observation window. The result also includes
+          client scheduling, serialization, transport, and query execution. It
+          does not isolate time inside the index.
+        </p>
+        <p>
+          A change has five seconds to succeed. Late responses stay in the
+          evidence but cannot establish success. Each read channel stops after
+          confirmation, so this finite window cannot prove permanent visibility.
+        </p>
+      </section>
+      <section id="reading-results">
+        <h2>How to read a result</h2>
+        <h3>What does p95 mean?</h3>
+        <p>
+          Within a trial, the 95th percentile (p95) is a time at or below which
+          95% of successful measurements fall. It helps describe the slower end
+          of the measurements without relying on a single maximum.
+        </p>
+        <p>
+          Each engine and workload has five trials. The comparison shows the{" "}
+          <strong>median of those five trial p95s</strong>. It is not the p95 of
+          every event pooled together.
+        </p>
+        <h3>What is the 95% interval?</h3>
+        <p>
+          We resample whole trials 5,000 times to form a bootstrap interval
+          around the estimate. Five trials give coarse uncertainty. The interval
+          does not establish statistical significance or a universal winner.
+        </p>
+        <h3>Why show confirmation rates?</h3>
+        <p>
+          Latency numbers describe successful changes. The confirmation rate
+          uses all offered changes, including errors, timeouts, and client
+          drops. A short time is not useful on its own if many changes fail.
+        </p>
+        <h3>How is search quality checked?</h3>
+        <p>
+          One hundred real questions query an unchanged part of the same index
+          while mutations target separate document IDs. Approximate search is
+          compared with exhaustive cosine search. At least 95% recall is
+          required before and during mutations. Equal-score neighbors at the
+          tenth boundary receive credit within a 10⁻⁶ tolerance.
+        </p>
+        <p>
+          The separate nDCG@10 score uses relevance judgments from the dataset.
+          These are scores for declared subsets, not full BEIR leaderboard
+          scores. Quality queries are filtered to the fixed cohort; mutation
+          probes search the whole collection.
+        </p>
+      </section>
+      <section id="checks">
+        <h2>What makes a comparison valid?</h2>
+        <p>
+          Every planned trial must finish and pass all eight checks. Failed
+          trials and failed checks stay visible.
+        </p>
+        <ul>
+          {Object.values(gates).map((label) => (
+            <li>{label}.</li>
+          ))}
+        </ul>
+        <details>
+          <summary>Exact timing and index rules</summary>
+          <p>
+            Arrival and background-query dispatch p95 must not exceed their
+            requested interarrival interval. Probe dispatch p95 must be at most
+            10 ms. Positive probes are spaced at least 25 ms apart; negative
+            probes at least 10 ms apart.
+          </p>
+          <p>
+            All engines use cosine similarity and HNSW parameters m=16,
+            construction effort 128, and search effort 128. PostgreSQL records
+            an HNSW query plan with sequential scans disabled. Weaviate uses a
+            zero flat-search cutoff. Qdrant requires at least 95% indexed base
+            vectors; remaining small segments can still use scans.
+          </p>
+        </details>
+        <h3>We also test the measurement harness</h3>
+        <p>
+          Known-delay controls inject visibility delays of 0, 25, and 100 ms. A
+          separate 100 ms acknowledgement delay checks that readers are
+          independent of write acknowledgement.
+        </p>
+        <div class="table-scroll">
+          <table>
+            <caption>
+              Known-delay controls from the reference experiment
+            </caption>
+            <thead>
+              <tr>
+                <th>Visibility delay</th>
+                <th>Acknowledgement delay</th>
+                <th>Confirmed changes</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.calibration.map((c) => (
+                <tr>
+                  <td>{c.injected_visibility_ms} ms</td>
+                  <td>{c.injected_ack_ms} ms</td>
+                  <td>
+                    {c.statuses.success}/{c.total_operations}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+      <section id="limits">
+        <h2>Where these results apply</h2>
+        <p>
+          This reference uses one Apple M4 host, Docker Desktop, and pinned
+          images. Each database gets two virtual CPUs and 3 GiB of memory.
+          Trials use fresh collections, five repetitions, 30-second measured
+          phases, ten changes/s, and ten background queries/s. Bursts offer 40
+          changes/s for one second every ten seconds. Observation reads add
+          traffic.
+        </p>
+        <ul>
+          <li>
+            The datasets supply real text and questions, but document changes
+            are simulated on disjoint IDs.
+          </li>
+          <li>
+            Static relevant-first subsets, one embedding model, and a filtered
+            quality workload bound the conclusions.
+          </li>
+          <li>
+            The client and containers share physical hardware. Other hardware
+            and configurations define different comparison tracks.
+          </li>
+          <li>
+            Qdrant uses wait=true, Weaviate uses synchronous indexing with REST
+            writes and GraphQL searches, and PostgreSQL uses autocommit with
+            independent connections. These are different API and acknowledgement
+            semantics.
+          </li>
+          <li>
+            The experiment does not establish maximum throughput, durability,
+            distributed consistency, or performance during long-running churn.
+          </li>
+          <li>
+            An earlier host interruption retained six complete trials and
+            restarted a preserved partial seventh attempt. A later user pause
+            followed trial 44 at a clean boundary. Calibration and environment
+            checks were repeated; container restarts may affect cache state.
+          </li>
+        </ul>
+        <p>
+          Independent performance replication on another host remains future
+          work. All raw observations and continuation records are available to
+          inspect.
+        </p>
+        <h3>Related work</h3>
+        <p>
+          <a href="https://github.com/erikbern/ann-benchmarks">
+            ANN-Benchmarks
+          </a>
+          ,{" "}
+          <a href="https://github.com/zilliztech/VectorDBBench">
+            VectorDBBench
+          </a>
+          , <a href="https://arxiv.org/abs/2105.09613">FreshDiskANN</a>, and{" "}
+          <a href="https://github.com/beir-cellar/beir">BEIR</a> provide
+          important context. This project makes no claim to be the first
+          freshness benchmark.
+        </p>
+        <a
+          class="text-link"
+          href="https://github.com/aadithya2112/freshness-benchmark/blob/v0.5.0/methodology.md"
+        >
+          Read the full versioned protocol →
+        </a>
+      </section>
+    </article>
+  </div>
+</Base>

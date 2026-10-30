@@ -15,7 +15,7 @@ The reference experiment has four workloads (SciFact at 4k documents; Natural Qu
 
 ## Run
 
-Python 3.12, `uv`, and Docker are the reference environment. The core package supports Python 3.10+. Model weights and dataset archives are downloaded during preparation; no paid API is required. The full experiment rebuilds 60 collections, including 30 at 100k scale.
+Python 3.12, `uv`, and Docker are the reference environment. The Astro website build also needs Node 24+ and `npm ci --prefix web`. The core package supports Python 3.10+. Model weights and dataset archives are downloaded during preparation; no paid API is required. The full experiment rebuilds 60 collections, including 30 at 100k scale.
 
 ```sh
 uv venv --python 3.12 .venv
@@ -33,6 +33,7 @@ docker compose -p freshness-v2 -f docker-compose.v2.yml up -d
 .venv/bin/python scripts/run_streaming.py \
   --out artifacts/my-v2 --trials 5 --duration 30
 .venv/bin/python scripts/verify_v2.py artifacts/my-v2 --check-data
+npm ci --prefix web
 .venv/bin/python scripts/build_website.py artifacts/my-v2
 python3 -m http.server 4173 --directory website/dist
 ```
