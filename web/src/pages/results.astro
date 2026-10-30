@@ -1,70 +1,13 @@
 ---
 import Base from "../layouts/Base.astro";
-import Comparison from "../components/Comparison.astro";
-import { data, mutations } from "../lib/data.js";
 ---
 
-<Base title="Compare results">
-  <div class="wrap page-heading results-intro">
-    <h1>Compare the results.</h1>
-    <p class="lead">
-      Choose a workload to compare speed, reliability, and search quality.
-    </p>
-    <p class="page-meta">
-      {data.completed} completed trials · {mutations.toLocaleString("en-US")}{" "}
-      offered changes ·{" "}
-      <a href="/data/results.csv" download>
-        Download all results as CSV ↓
-      </a>
-    </p>
+<Base title="Results">
+  <div class="wrap page-heading">
+    <h1>Results have moved to the homepage.</h1>
+    <a href="/#results">Open the benchmark results →</a>
   </div>
-  <div class="wrap results-layout">
-    <div>
-      <Comparison />
-    </div>
-    <aside class="reading-guide">
-      <h2>A quick reading guide</h2>
-      <dl>
-        <dt>Milliseconds (ms)</dt>
-        <dd>
-          One thousand milliseconds is one second. Lower time means a faster
-          observation.
-        </dd>
-        <dt>p95</dt>
-        <dd>
-          A slow-end summary: 95% of successful measurements in a trial were at
-          or below its p95. We show the median p95 across five trials.
-        </dd>
-        <dt>Search recall</dt>
-        <dd>
-          How closely approximate search matched exact search. Every trial must
-          reach at least 95%.
-        </dd>
-        <dt>Validity checks</dt>
-        <dd>
-          Checks that traffic arrived on time, the intended index was used, and
-          the client did not drop changes.
-        </dd>
-      </dl>
-      <a href="/methodology/#reading-results">Read the full explanation →</a>
-    </aside>
-  </div>
-  <section class="wrap section bottom-section">
-    <div class="reading-callout">
-      <h2>Keep the setup in mind.</h2>
-      <p>
-        Apple M4 · Docker Desktop · 2 CPUs and 3 GiB per database. Each measured
-        phase lasts 30 seconds. These are results for this setup, not a ranking
-        across every possible workload.
-      </p>
-      <p>
-        One earlier partial attempt and a later clean pause are documented in
-        the{" "}
-        <a href="https://github.com/aadithya2112/freshness-benchmark/releases/download/v0.5.0/REPORT.md">
-          report
-        </a>{" "}
-        and full evidence.
-      </p>
-    </div>
-  </section>
+  <script>
+    location.replace("/" + location.search + "#results");
+  </script>
 </Base>

@@ -13,7 +13,7 @@ export function getStaticPaths() {
 }
 const { run } = Astro.props;
 const s = run.summary;
-const back = `/results/?scenario=${run.scenario}&operation=insert`;
+const back = `/?scenario=${run.scenario}&operation=insert#results`;
 ---
 
 <Base title={`${names[run.backend]} · Trial ${run.trial}`}>

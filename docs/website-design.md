@@ -1,11 +1,9 @@
 # Astro website and reading flow
 
 The website uses Astro static pages, a system sans-serif font, white surfaces,
-blue links, and readable 16–20px body text. The layout introduces the question,
-shows a scoped result preview, explains the three measurement steps, and then
-invites readers into the full comparison.
+blue links, and readable 16–20px body text. The homepage combines a short introduction, filters, the interactive graph, and compact database summaries. Detailed explanations use expandable sections.
 
-The results page places a compact set of controls above three database rows.
+The homepage places a compact set of controls above three database rows.
 An interactive bar chart shows latency with 95% trial-bootstrap whiskers and a zero-based linear axis. It supports pointer, touch, and keyboard inspection and updates with every filter. Each row gives one primary latency estimate, its trial-level interval,
 confirmation rate, and search recall. Technical metrics and individual trial
 links use native expandable sections. A reading guide explains milliseconds,

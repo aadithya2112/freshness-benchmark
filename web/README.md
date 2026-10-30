@@ -1,6 +1,6 @@
 # Astro website
 
-A statically rendered Astro site with an overview, results, methodology,
+A statically rendered Astro site with a combined overview/results homepage, methodology,
 datasets, reproduction instructions, and a page for each recorded trial.
 It uses system fonts and plain JavaScript for the comparison controls.
 

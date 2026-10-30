@@ -1189,3 +1189,151 @@ th {
     align-items: stretch;
   }
 }
+/* A single concise landing page: filters, graph, and compact reliability rows. */
+.unified-intro {
+  padding-block: 32px 25px;
+}
+.unified-intro h1 {
+  font-size: 40px;
+  margin-bottom: 10px;
+}
+.unified-intro > p {
+  font-size: 18px;
+  color: var(--muted);
+  margin-bottom: 14px;
+}
+.unified-meta {
+  display: flex;
+  gap: 15px 25px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: var(--muted);
+}
+.unified-results {
+  scroll-margin-top: 24px;
+}
+.unified-results .comparison-controls {
+  grid-template-columns: 1.35fr 1fr 0.8fr;
+  padding: 19px 22px;
+  margin-bottom: 23px;
+}
+.unified-results .comparison-controls .metric-select {
+  font-size: 14px;
+  font-weight: 600;
+  min-width: 0;
+  width: auto;
+}
+.unified-results .comparison-controls .metric-select select {
+  min-height: 46px;
+  font-size: 15px;
+  margin-top: 9px;
+  padding: 9px 30px 9px 12px;
+}
+.unified-results .metric-heading h2 {
+  font-size: 23px;
+  margin: 0;
+}
+.unified-results .latency-figure {
+  margin-top: 15px;
+  padding-top: 18px;
+}
+.unified-results .latency-figure figcaption {
+  flex-direction: row;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: start;
+}
+.unified-results .latency-figure #graph-detail {
+  min-height: 22px;
+}
+.comparison-notes {
+  margin-top: 16px;
+  padding-top: 12px;
+}
+.comparison-notes p {
+  max-width: 850px;
+}
+.compact-engines .engine-result {
+  display: grid;
+  grid-template-columns: 190px 1fr;
+  gap: 6px 35px;
+  padding: 19px 0 13px;
+}
+.compact-engines .engine-time,
+.compact-engines .interval-track,
+.compact-engines .interval-label {
+  display: none;
+}
+.compact-engines .engine-top h3 {
+  font-size: 19px;
+}
+.compact-engines .engine-facts {
+  margin: 0;
+  align-items: center;
+}
+.compact-engines .engine-result > details {
+  grid-column: 1/-1;
+  margin: 3px 0 0;
+  padding: 0;
+  border: 0;
+}
+.compact-engines .engine-result > details > summary {
+  font-size: 12px;
+}
+.compact-engines .engine-version {
+  font-size: 12px;
+}
+.unified-scope {
+  font-size: 13px;
+  color: var(--muted);
+  padding-block: 22px 38px;
+  margin-bottom: 0;
+}
+.unified-results .comparison-bottom > p {
+  display: none;
+}
+@media (max-width: 760px) {
+  .unified-intro {
+    padding-block: 26px 24px;
+  }
+  .unified-intro h1 {
+    font-size: 32px;
+  }
+  .unified-intro > p {
+    font-size: 17px;
+  }
+  .unified-meta {
+    gap: 8px 20px;
+  }
+  .unified-results .comparison-controls {
+    grid-template-columns: 1fr;
+    padding: 17px;
+    gap: 15px;
+  }
+  .unified-results .metric-heading h2 {
+    font-size: 22px;
+  }
+  .unified-results .latency-figure figcaption {
+    flex-direction: column;
+    gap: 7px;
+  }
+  .compact-engines .engine-result {
+    grid-template-columns: 1fr;
+    gap: 13px;
+  }
+  .compact-engines .engine-top {
+    align-items: start;
+  }
+  .compact-engines .engine-facts {
+    gap: 12px;
+  }
+  .compact-engines .engine-result > details {
+    grid-column: 1;
+  }
+  .unified-scope {
+    padding-block: 25px;
+  }
+  .unified-results .comparison-controls .metric-select {
+    display: block;
+  }
+}

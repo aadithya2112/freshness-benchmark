@@ -46,11 +46,6 @@ const initial = groups.filter(
         ))}
       </div>
     </fieldset>
-  </form>
-  <div class="metric-heading">
-    <div>
-      <h2 id="metric-title">Time until the change is visible</h2>
-    </div>
     <label class="metric-select" for="metric">
       Measure
       <select id="metric">
@@ -59,14 +54,13 @@ const initial = groups.filter(
         <option value="query">Background query time</option>
       </select>
     </label>
-  </div>
-  <figure class="latency-figure" aria-labelledby="graph-heading">
-    <div class="graph-heading">
-      <h3 id="graph-heading">Latency at a glance</h3>
-      <span class="graph-key">
-        <span aria-hidden="true">↕</span> 95% trial interval
-      </span>
+  </form>
+  <div class="metric-heading">
+    <div>
+      <h2 id="metric-title">Time until the change is visible</h2>
     </div>
+  </div>
+  <figure class="latency-figure" aria-labelledby="metric-title">
     <div id="latency-graph" set:html={chartSVG(initial, "first")} />
     <figcaption>
       <span id="graph-detail" role="status">
@@ -75,20 +69,27 @@ const initial = groups.filter(
       <span>Median trial p95 · linear scale starts at zero</span>
     </figcaption>
   </figure>
-  <p id="metric-explanation">
-    Both a direct read and a search result have shown the new state. Lower is
-    faster.
-  </p>
-  <p class="small-note">
-    Times are medians of five trial p95s. The interval shows uncertainty in that
-    estimate.{" "}
-    <a href="/methodology/#reading-results">Help me read these numbers →</a>
-  </p>
-  <p id="workload-description" class="workload-description">
-    {workloads["nq-100k"].description}
-  </p>
-
-  <div id="comparison-list" aria-live="polite" aria-atomic="false">
+  <details class="comparison-notes">
+    <summary>How to read this graph</summary>
+    <p id="metric-explanation">
+      Both a direct read and a search result have shown the new state. Lower is
+      faster.
+    </p>
+    <p class="small-note">
+      Times are medians of five trial p95s. The interval shows uncertainty in
+      that estimate.{" "}
+      <a href="/methodology/#reading-results">Help me read these numbers →</a>
+    </p>
+    <p id="workload-description" class="workload-description">
+      {workloads["nq-100k"].description}
+    </p>
+  </details>
+  <div
+    class="compact-engines"
+    id="comparison-list"
+    aria-live="polite"
+    aria-atomic="false"
+  >
     {initial.map((g) => (
       <article class="engine-result" data-engine={g.backend}>
         <div class="engine-top">
@@ -162,8 +163,8 @@ const initial = groups.filter(
   </div>
   <div class="comparison-bottom">
     <p>
-      Latency describes successfully confirmed changes. Confirmation rates
-      include all offered changes. Observation reads add load.
+      Times describe confirmed changes. Reliability includes all offered
+      changes.
     </p>
     <button id="share-comparison" class="text-button" type="button">
       Copy comparison link
