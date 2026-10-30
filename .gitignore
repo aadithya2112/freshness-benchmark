@@ -16,3 +16,8 @@ website/
 
 node_modules/
 .astro/
+
+.vercel/
+web/public/data/
+.vercel
+.env*
