@@ -4,7 +4,7 @@ An open benchmark of **client-observed insert, replacement, and deletion visibil
 
 The reference experiment has four workloads (SciFact at 4k documents; Natural Questions at 10k and 100k, with steady and burst arrivals), five randomized trials per engine/workload, and 30 seconds of measured traffic per trial. It measures one machine and one declared configuration per engine. It is not a universal database ranking or a measurement of internal indexing time.
 
-- [Live benchmark website](https://freshness-benchmark-lab.aadithyacps.chatgpt.site)
+- [Live benchmark website](https://freshness-benchmark-aadithya2112s-projects.vercel.app)
 - [Final reference results and figures](results/mixed-v2/REPORT.md) — 60 trials, 19,350 confirmed mutations, and 18,000 background queries; all validity gates passed
 - [Versioned release and exact data downloads](https://github.com/aadithya2112/freshness-benchmark/releases/tag/v0.5.0)
 - [Protocol and interpretation](methodology.md)
