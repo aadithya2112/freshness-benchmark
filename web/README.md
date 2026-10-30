@@ -29,3 +29,7 @@ payload reaches the comparison script; individual trial pages work without
 client-side JavaScript. Original hash-based comparison links redirect to the
 new results route. The versioned 0.5.0 source download retains the original UI;
 current Astro source lives on the repository's main branch.
+
+For Vercel production builds and Git deployments, see
+[the deployment guide](../docs/vercel-deployment.md). Evidence downloads are
+prepared from the pinned public release before the Astro build.
