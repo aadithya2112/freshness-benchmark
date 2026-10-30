@@ -1,6 +1,11 @@
 # Vercel hosting
 
-Production: https://freshness-benchmark.vercel.app
+Production: https://freshness-benchmark.aadithya.dev
+
+Astro uses this custom domain for canonical URLs. `SITE_URL` can override it for
+an independently hosted copy; Vercel preview URLs do not change the canonical
+production address. Comparison filters remain in share links, while canonical
+URLs identify the underlying page without query parameters.
 
 The public site is a static Astro build. Vercel's project root is the repository
 root, so the build can read `results/mixed-v2/results.json` outside `web/`.
